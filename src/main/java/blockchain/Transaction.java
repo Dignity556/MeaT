@@ -30,4 +30,8 @@ public class Transaction {
     public double getReputationForDouble() {
         return Double.parseDouble(reputation);
     }
+
+    public int getIdForInt() {
+        return Integer.parseInt(id);
+    }
 }

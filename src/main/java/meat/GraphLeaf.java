@@ -12,6 +12,7 @@ import lombok.Setter;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.*;
 
 @Getter
 @Setter
@@ -93,5 +94,147 @@ public class GraphLeaf {
             return dfs(leaf.getRight(), txId);
         }
         return null;
+    }
+
+    public List<Transaction> propertyQuery(Map<String, String> queries) {
+        PSTBranchNode branchNode = extensionNode.getNextItem();
+        Map<String, PSTBranchNodeItem> items = branchNode.getItems();
+
+        List<Transaction> txs = new ArrayList<>();
+        Queue<PSTExtensionNode> extensionQueue = new LinkedList<>();
+        if (queries.containsKey("type")) {
+            extensionQueue.add(typeExtensionFilter(queries.get("type"), items));
+            txs.addAll(typeLeafFilter(queries.get("type"), items));
+            queries.remove("type");
+        } else {
+            for (String key : queries.keySet()) {
+                if (items.get(key).getNextExtension() != null) {
+                    extensionQueue.add(items.get(key).getNextExtension());
+                }
+                if (items.get(key).getNextLeaf() != null) {
+                    txs.addAll(items.get(key).getNextLeaf().getTransactions());
+                }
+            }
+        }
+
+        // 第二层用递归方法
+        if (queries.size() != 0) {
+           txs.addAll(iterateQueryPST(extensionQueue, queries));
+        }
+        return txs;
+    }
+
+    public List<Transaction> iterateQueryPST(Queue<PSTExtensionNode> extensionQueue, Map<String,String> queries){
+        List<Transaction> txs=new ArrayList<>();
+        if (queries.containsKey("time_cost") && !queries.containsKey("reputation")) {
+            while (extensionQueue.size() != 0) {
+                if (extensionQueue.peek().getProperty().equals("time_cost")) {
+                    PSTExtensionNode pre = extensionQueue.peek();
+                    Map<String, PSTBranchNodeItem> items = pre.getNextItem().getItems();
+                    txs.addAll(valueLeafFilter("time_cost", queries.get("time_cost"), items));
+                    extensionQueue.addAll(valueExtensionFilter("time_cost", queries.get("time_cost"), items));
+                    extensionQueue.poll();
+                } else {
+                    PSTExtensionNode pre = extensionQueue.peek();
+                    Map<String,PSTBranchNodeItem> items = pre.getNextItem().getItems();
+                    txs.addAll(valueLeafFilter("time_cost",queries.get("time_cost"), items));
+                    extensionQueue.poll();
+                }
+            }
+        } else if (!queries.containsKey("time_cost") && queries.containsKey("reputation")) {
+            for (PSTExtensionNode node : extensionQueue) {
+                PSTBranchNode pre=node.getNextItem();
+                for (String key:pre.getItems().keySet()) {
+                    extensionQueue.add(pre.getItems().get(key).getNextExtension());
+                }
+            }
+            while (extensionQueue.size() != 0) {
+                PSTExtensionNode pre = extensionQueue.peek();
+                Map<String,PSTBranchNodeItem> items = pre.getNextItem().getItems();
+                txs.addAll(valueLeafFilter("time_cost", queries.get("time_cost"), items));
+                extensionQueue.poll();
+            }
+        }else {
+            while (extensionQueue.size() != 0) {
+                PSTExtensionNode pre = extensionQueue.peek();
+                Map<String,PSTBranchNodeItem> items = pre.getNextItem().getItems();
+                txs.addAll(valueLeafFilter("time_cost",queries.get("time_cost"), items));
+                extensionQueue.addAll(valueExtensionFilter("time_cost",queries.get("time_cost"), items));
+                extensionQueue.poll();
+            }
+        }
+        return txs;
+    }
+
+
+    //确认属性在哪个item中
+    public PSTExtensionNode typeExtensionFilter(String type, Map<String, PSTBranchNodeItem> branchNodeItems){
+        PSTBranchNodeItem nodeItems=branchNodeItems.get(type);
+        return nodeItems.getNextExtension();
+    }
+
+    //确认属性在哪个item中
+    public List<Transaction> typeLeafFilter(String type, Map<String,PSTBranchNodeItem> branchNodeItems){
+        List<Transaction> txs = new ArrayList<>();
+        PSTBranchNodeItem nodeItems = branchNodeItems.get(type);
+        if (nodeItems.getNextLeaf() != null) {
+            txs = nodeItems.getNextLeaf().getTransactions();
+        }
+        return txs;
+    }
+
+    //返回所有item的再下一层extension_node
+    public LinkedList<PSTExtensionNode> valueExtensionFilter(String costOrRepu, String propertyValue, Map<String,PSTBranchNodeItem> branchNodeItems)
+    {
+        //先比较值在哪些key中
+        LinkedList<PSTExtensionNode> nodes=new LinkedList<>();
+        ArrayList<String> keys=new ArrayList<>();
+        for (String key: branchNodeItems.keySet())
+        {
+            String[] min_max=key.split(",");
+            double min = Double.valueOf(min_max[0]);
+            double max = Double.valueOf(min_max[1]);
+            double value = Double.valueOf(propertyValue);
+            if(value>max || (value<=max && value>=min))
+            {
+                keys.add(key);
+            }
+        }
+        //根据对应的key值筛选extensionnode
+        for (int i=0; i<keys.size();i++)
+        {
+            if(branchNodeItems.get(keys.get(i)).getNextExtension()!=null)
+            {
+                nodes.add(branchNodeItems.get(keys.get(i)).getNextExtension());
+            }
+        }
+        return nodes;
+    }
+
+    //返回所有leaf的transactions
+    public ArrayList<Transaction> valueLeafFilter(String costOrRepu, String propertyValue, Map<String,PSTBranchNodeItem> branchNodeItems)
+    {
+        //先比较值在哪些key中
+        ArrayList<Transaction> txs=new ArrayList<>();
+        ArrayList<String> keys=new ArrayList<>();
+        for (String key: branchNodeItems.keySet())
+        {
+            //cost/repu的值用
+            String[] min_max=key.split(",");
+            double min=Double.valueOf(min_max[0]);
+            double max=Double.valueOf(min_max[1]);
+            double value=Double.valueOf(propertyValue);
+            if(value>max || (value<=max && value>=min))
+            {
+                keys.add(key);
+            }
+        }
+        //根据对应的key值筛选extensionnode
+        for (int i=0; i<keys.size();i++) {
+            if (branchNodeItems.get(keys.get(i)).getNextLeaf() != null) {
+                txs.addAll(branchNodeItems.get(keys.get(i)).getNextLeaf().getTransactions());
+            }
+        }
+        return txs;
     }
 }

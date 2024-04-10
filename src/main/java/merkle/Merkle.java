@@ -1,9 +1,11 @@
 package merkle;
 
+import blockchain.Block;
 import blockchain.Transaction;
 import data.Context;
 import query.Query;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -17,27 +19,45 @@ public class Merkle implements Query {
         this.context = context;
     }
     @Override
-    public Transaction singleTransactionQuery(String transactionId) {
-        return null;
+    public boolean singleTransactionQuery(String transactionId) {
+        List<Block> blocks = context.getBlocks();
+        for (Block block : blocks) {
+            MerkleTree merkleTree = block.getMerkleTree();
+            boolean res = merkleTree.singleTransactionQuery(transactionId);
+            if (res) return true;
+        }
+        return false;
     }
 
     @Override
-    public List<Transaction> singleNodeQuery(String nodeId) {
-        return null;
+    public boolean singleNodeQuery(String nodeId) {
+        List<Block> blocks = context.getBlocks();
+        for (Block block : blocks) {
+            MerkleTree merkleTree = block.getMerkleTree();
+            List<Transaction> transactions = merkleTree.singleNodeQuery(nodeId);
+            if (transactions.size() > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
-    public List<Transaction> propertyQuery(String property) {
-        return null;
+    public boolean propertyRangeQuery(Map<String, String> queries) {
+        List<Block> blocks = context.getBlocks();
+        List<Transaction> res = new ArrayList<>();
+        for (Block block : blocks) {
+            MerkleTree merkleTree = block.getMerkleTree();
+            res.addAll(merkleTree.propertyQuery(queries));
+        }
+        if (res.size() != 0) {
+            return true;
+        }
+        return false;
     }
 
     @Override
-    public List<Transaction> propertyRangeQuery(Map<String, String> queries) {
-        return null;
-    }
-
-    @Override
-    public List<Transaction> mixQuery() {
-        return null;
+    public boolean mixQuery() {
+        return false;
     }
 }
