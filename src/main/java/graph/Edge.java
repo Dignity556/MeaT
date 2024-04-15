@@ -22,4 +22,8 @@ public class Edge {
     private String reputation; //相当于权重
     private Block block;
     private Transaction transaction;
+
+    public Edge(Transaction transaction) {
+        this.transaction = transaction;
+    }
 }

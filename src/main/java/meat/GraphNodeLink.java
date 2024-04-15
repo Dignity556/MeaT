@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,6 +14,6 @@ import java.util.Map;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class GraphNodeLink {
+public class GraphNodeLink implements Serializable {
     private Map<Node, GraphNodeLinkItem> items = new HashMap<>();
 }

@@ -13,7 +13,6 @@ import java.util.Map;
 
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor
 public class PropertySemanticTrie {
     public static void createPST(Block block, String[] filterOrder, int amount) {
@@ -43,25 +42,25 @@ public class PropertySemanticTrie {
         }
         branchNode.setItems(itemMap);
         branchNode.setPrevious(rootExtension);
-        branchNode.leafOrBranch(itemMap, branchNode);
+        Map<String, PSTBranchNodeItem> newItem = branchNode.leafOrBranch(itemMap, branchNode);
 
         // 递归构建
-        iterateFilter(itemMap, 0, filterOrder, amount, branchNode);
+        iterateFilter(newItem, 0, filterOrder, amount, branchNode);
     }
 
     public static void iterateFilter(Map<String, PSTBranchNodeItem> branchItems, int pre_type, String[] types, int amount, PSTBranchNode branchNode) {
-        for(String key: branchItems.keySet()) {
+        for (String key: branchItems.keySet()) {
             //判断是否达到叶子节点 是叶子节点就变成叶子节点
-            if(branchItems.get(key).getNextLeaf() != null || pre_type == 3) {
+            if (branchItems.get(key).getNextLeaf() != null || pre_type == 3) {
                 branchItems.get(key).setNextExtension(null);
                 PSTLeafNode leafNode = new PSTLeafNode();
-                for (Transaction tx : branchItems.get(key).getPreTransactions()){
+                for (Transaction tx : branchItems.get(key).getPreTransactions()) {
                     leafNode.addTransaction(tx);
                 }
                 branchItems.get(key).setNextLeaf(leafNode);
                 leafNode.setPreBranch(branchItems.get(key));
                 leafNode.setId("prebranch" + leafNode.getPreBranch().getId() + "leafnode");
-                System.out.println("Leaf");
+//                System.out.println("Leaf");
             } else {
                 PSTExtensionNode extensionNode = branchItems.get(key).getNextExtension();
                 if(extensionNode != null) {
@@ -74,16 +73,16 @@ public class PropertySemanticTrie {
                     Map<String,PSTBranchNodeItem> branchitems1 = new HashMap<>();
                     if(types[pre_type].equals("type")) {
                         branchitems1 = branch1.categoryByType(branchItems.get(key).getPreTransactions());
-                        System.out.println("This layer: type");
+//                        System.out.println("This layer: type");
                     } else if(types[pre_type].equals("time_cost")) {
                         branchitems1 = branch1.categoryByTimeCost(branchItems.get(key).getPreTransactions(), amount);
-                        System.out.println("This layer: time");
+//                        System.out.println("This layer: time");
                     } else {
                         branchitems1 = branch1.categoryByReputation(branchItems.get(key).getPreTransactions(), amount);
-                        System.out.println("This layer: repu");
+//                        System.out.println("This layer: repu");
                     }
                     Map<String,PSTBranchNodeItem> new_branch_items = branch1.leafOrBranch(branchitems1, branch1);
-                    iterateFilter(new_branch_items, pre_type + 1, types,amount, branch1);
+                    iterateFilter(new_branch_items, pre_type + 1, types, amount, branch1);
                 }
             }
         }

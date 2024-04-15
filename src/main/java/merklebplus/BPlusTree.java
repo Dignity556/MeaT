@@ -5,9 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Getter
 @Setter
@@ -40,8 +38,8 @@ public class BPlusTree<T, V extends Comparable<V>> {
     //查询
     public T find(V key){
         T t = this.root.find(key);
-        if(t == null){
-            System.out.println("不存在");
+        if (t == null){
+//            System.out.println("不存在");
         }
         return t;
     }
@@ -65,10 +63,18 @@ public class BPlusTree<T, V extends Comparable<V>> {
     public void createMerkle() {
         LeafNode<T, V> cur = this.left;
         while (cur != null) {
-            Transaction[] txs = (Transaction[])cur.getValues();
+
+            Transaction[] txs = new Transaction[cur.values.length];
+            for (int i = 0; i < cur.values.length; i++) {
+                txs[i] = (Transaction)cur.values[i];
+            }
             List<Leaf> leaves = new ArrayList<>();
             for (Transaction tx : txs) {
-                leaves.add(new Leaf(tx));
+                if (tx == null) {
+//                    System.out.println("交易为空");
+                } else {
+                    leaves.add(new Leaf(tx));
+                }
             }
             try {
                 Leaf root = createMerkleIterator(leaves);
@@ -87,6 +93,7 @@ public class BPlusTree<T, V extends Comparable<V>> {
         if(leaves.size() == 1) {
             leaves.get(0).setFather(null);
             leaves.get(0).setId("root" + leaves.get(0).getBlock().getId());
+            return leaves.get(0);
         }else{
             for(int i = 0;i < leaves.size() - 1;i += 2) {
                 Leaf father = new Leaf();
@@ -108,8 +115,23 @@ public class BPlusTree<T, V extends Comparable<V>> {
                 count += 1;
 //                System.out.println("Ok, we lost one, "+count+" nodes in total");
             }
+            return createMerkleIterator(newLeaves);
         }
-        return createMerkleIterator(leaves);
+    }
+
+    public Transaction singleTransactionQuery(String txId) {
+        LeafNode cur = left;
+        while (cur != null) {
+            Transaction[] transactions = new Transaction[cur.values.length];
+            for (int i = 0; i < cur.values.length; i++) {
+                transactions[i] = (Transaction)cur.values[i];
+                if (transactions[i] != null && transactions[i].getId().equals(txId)) {
+                    return transactions[i];
+                }
+            }
+            cur = cur.getLeft();
+        }
+        return null;
     }
 
     public List<Transaction> singleNodeQuery(String nodeId) {
@@ -117,9 +139,13 @@ public class BPlusTree<T, V extends Comparable<V>> {
         LeafNode cur = left;
         // TODO 暂时使用直接遍历方式，后续采用merkle遍历
         while (cur != null) {
-            for (Transaction value : (Transaction[]) cur.getValues()) {
-                if (value.getStartNode().getNodeId().equals(nodeId)) {
-                    txs.add(value);
+            Transaction[] transactions = new Transaction[cur.values.length];
+            for (int i = 0; i < cur.values.length; i++) {
+                transactions[i] = (Transaction)cur.values[i];
+            }
+            for (Transaction transaction : transactions) {
+                if (transaction != null && transaction.getStartNode().getNodeId().equals(nodeId)) {
+                    txs.add(transaction);
                 }
             }
             cur = cur.getRight();
@@ -145,24 +171,78 @@ public class BPlusTree<T, V extends Comparable<V>> {
             reputation[0] = split[0];
             reputation[1] = split[1];
         }
-        double timeCostMin = Double.valueOf(timeCost[0]);
-        double timeCostMax = Double.valueOf(timeCost[1]);
-        double reputationMin = Double.valueOf(reputation[0]);
-        double reputationMax = Double.valueOf(reputation[1]);
+        int timeCostMin = Double.valueOf(timeCost[0]).intValue();
+        int timeCostMax = Double.valueOf(timeCost[1]).intValue();
+        int reputationMin = Double.valueOf(reputation[0]).intValue();
+        int reputationMax = Double.valueOf(reputation[1]).intValue();
 
-        LeafNode cur = left;
+        LeafNode cur = getLeftLeaf();
         while (cur != null) {
-            Transaction[] txs = (Transaction[])cur.getValues();
-            for (Transaction tx : txs) {
-                double timeValue = Double.valueOf(tx.getTimeCost());
-                double repuValue = Double.valueOf(tx.getReputation());
-                if ((tx.getType().equals(type) &&
-                        (timeValue > timeCostMin) && (timeValue < timeCostMax) &&
-                        (repuValue > reputationMin) && (repuValue < reputationMax))) {
-                    res.add(tx);
+            Transaction[] transactions = new Transaction[cur.values.length];
+            for (int i = 0; i < cur.values.length; i++) {
+                transactions[i] = (Transaction)cur.values[i];
+            }
+            for (Transaction tx : transactions) {
+                if (tx != null) {
+                    int timeValue = Double.valueOf(tx.getTimeCost()).intValue();
+                    int repuValue = Double.valueOf(tx.getReputation()).intValue();
+                    if ((tx.getType().equals(type) ||
+                            ((timeValue >= timeCostMin) && (timeValue <= timeCostMax)) ||
+                            ((repuValue >= reputationMin) && (repuValue <= reputationMax)))) {
+                        res.add(tx);
+                    }
                 }
             }
             cur = cur.getLeft();
+        }
+        return res;
+    }
+
+    private LeafNode getLeftLeaf() {
+        Queue<Node> queue = new LinkedList<>();
+        List<List<Node>> res = new ArrayList<>();
+        queue.offer(root);
+        while (!queue.isEmpty()) {
+            List<Node> itemList = new ArrayList<>();
+            int len = queue.size();
+            while (len > 0) {
+                Node tmpNode = queue.poll();
+                itemList.add(tmpNode);
+                for (Node child : tmpNode.childs) {
+                    if (child != null) {
+                        queue.offer(child);
+                    }
+                }
+                len--;
+            }
+            res.add(itemList);
+        }
+        return (LeafNode) res.get(res.size() - 1).get(0);
+    }
+
+    public List<Transaction> propertyQueryTopK(String type, int topK) {
+        PriorityQueue<Transaction> priorityQueue;
+        List<Transaction> res = new ArrayList<>();
+        if (type.equals("time_cost")) {
+            priorityQueue = new PriorityQueue<>(Transaction.compareByTimeCost);
+        } else {
+            priorityQueue = new PriorityQueue<>(Transaction.compareByReputation);
+        }
+        LeafNode cur = getLeftLeaf();
+        while (cur != null) {
+            Transaction[] transactions = new Transaction[cur.values.length];
+            for (int i = 0; i < cur.values.length; i++) {
+                transactions[i] = (Transaction)cur.values[i];
+            }
+            for (Transaction tx : transactions) {
+                if (tx != null) {
+                    priorityQueue.add(tx);
+                }
+            }
+            cur = cur.getLeft();
+        }
+        for (int i = 0; i < topK; i++) {
+            res.add(priorityQueue.poll());
         }
         return res;
     }
@@ -362,8 +442,6 @@ public class BPlusTree<T, V extends Comparable<V>> {
         T find(V key) {
             if(this.number <= 0)
                 return null;
-
-//            System.out.println("叶子节点查找");
 
             Integer left = 0;
             Integer right = this.number;

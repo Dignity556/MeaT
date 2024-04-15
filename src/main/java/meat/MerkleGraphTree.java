@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +18,7 @@ import java.util.Map;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class MerkleGraphTree {
+public class MerkleGraphTree implements Serializable {
     private GraphLeaf root; // mgt结构的根节点
     private Block belongBLock; // 该mgt归属区块
     private GraphNodeLink gnl;
@@ -36,7 +37,6 @@ public class MerkleGraphTree {
             List<Transaction> transactions = block.getTransactions();
             Map<Node, List<Transaction>> nodeTxsMap = context.groupByNode(transactions);
             GraphNodeLink gnl = new GraphNodeLink();
-
             // 构建下层
             for (Node node : nodeTxsMap.keySet()) {
                 List<Transaction> txs = nodeTxsMap.get(node);
@@ -47,6 +47,7 @@ public class MerkleGraphTree {
                     leaves.add(leaf);
                     leafId++;
                 }
+                // 只有叶子节点有实际交易数据
                 GraphLeaf root = createLowerMGT(leaves);
                 // 生成item并与下层mgt建立连接
                 GraphNodeLinkItem item = new GraphNodeLinkItem(String.valueOf(itemCount), node, root);
@@ -92,7 +93,6 @@ public class MerkleGraphTree {
             }
             if ((leaves.size() % 2) == 1) {
                 GraphLeaf newLeaf = leaves.get(leaves.size() - 1);
-                String label = newLeaf.getSubTreeNode().getNodeId();
                 newLeaf.setId("leaf");
                 newLeaves.add(newLeaf);
             }

@@ -15,7 +15,7 @@ import java.util.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class MSTTree {
-    private TrieNode root;
+    private TrieNode root = new TrieNode();
     public void createMST(Context context) {
         List<Block> blocks = context.getBlocks();
         Map<Block, Set<String>> index = new HashMap<>();
@@ -54,7 +54,7 @@ public class MSTTree {
     private TrieNode search(List<String> words){
         TrieNode cur = root;
         for (String word : words) {
-            if (!cur.children.containsKey(word)) {
+            if (cur.children.containsKey(word)) {
                 return cur.children.get(word);
             } else {
                 cur = cur.children.get(word);
@@ -63,51 +63,87 @@ public class MSTTree {
         return null;
     }
 
-    public boolean singleTransactionQuery(String txId) {
-        TrieNode res = dfs(root, txId);
-        if (res != null) {
+    public boolean singleTransactionQuery(String txId, String nodeId) {
+        Transaction tx = dfs(root, txId);
+        if (tx != null && tx.getStartNode().getNodeId().equals(nodeId)) {
             return true;
         }
         return false;
     }
 
-    private TrieNode dfs(TrieNode node, String txId) {
-        if (!node.haveBlock) {
-            return null;
-        } else {
+    private Transaction dfs(TrieNode node, String txId) {
+        if (node.haveBlock) {
             Block block = node.block;
             List<Transaction> txs = block.getTransactions();
             for (Transaction tx : txs) {
-                if (tx.getId().equals(txId)) {
-                    return node;
-                }
+                if (tx.getId().equals(txId)) return tx;
             }
         }
         for (TrieNode child : node.children.values()) {
-            dfs(child, txId);
+            return dfs(child, txId);
         }
         return null;
     }
 
+    public List<Transaction> singleNodeQuery(String nodeId, String blockId) {
+        List<Transaction> txs = new ArrayList<>();
+        nodeQueryIter(root, nodeId, txs);
+        List<Transaction> res = new ArrayList<>();
+        for (Transaction tx : txs) {
+            if (tx.getBeLongBlock().getId().equals(blockId)) {
+                res.add(tx);
+            }
+        }
+        return res;
+    }
 
-
-    public List<Transaction> singleNodeQuery(String nodeId) {
+    public List<Transaction> singleNodeQueryAllBlock(String nodeId) {
         List<Transaction> txs = new ArrayList<>();
         nodeQueryIter(root, nodeId, txs);
         return txs;
     }
 
     private void nodeQueryIter(TrieNode node, String nodeId, List<Transaction> txs) {
-        if (!node.haveBlock) return;
-        Block block = node.block;
-        List<Transaction> transactions = block.getTransactions();
-        for (Transaction transaction : transactions) {
-            if (transaction.getStartNode().getNodeId().equals(nodeId)) {
-                txs.add(transaction);
+        if (node.haveBlock) {
+            Block block = node.block;
+            List<Transaction> transactions = block.getTransactions();
+            for (Transaction transaction : transactions) {
+                if (transaction.getStartNode().getNodeId().equals(nodeId)) {
+                    txs.add(transaction);
+                }
             }
         }
         for (TrieNode child : node.children.values()) {
             nodeQueryIter(child, nodeId, txs);
+        }
+    }
+
+    public List<Transaction> propertyQuerySingleBlock(Map<String, String> queries, String blockId) {
+        if (queries.get("type") != null) {
+            List<String> keys = new ArrayList<>();
+            String key = queries.get("type");
+            keys.add(key);
+            TrieNode search = search(keys);
+            if (search.block.getId().equals(blockId)) {
+                List<Transaction> txs = search.block.getTransactions();
+                List<Transaction> filter = filter(txs, queries);
+                return filter;
+            }
+        } else {
+            List<Transaction> res = new ArrayList<>();
+            propertyQuerySingleBlockIter(queries, res, root, blockId);
+            return res;
+        }
+        return null;
+    }
+
+    private void propertyQuerySingleBlockIter(Map<String, String> queries, List<Transaction> res, TrieNode node, String blockId) {
+        if (node == null) return;
+        if (node.haveBlock && node.block.getId().equals(blockId)) {
+            res.addAll(filter(node.block.getTransactions(), queries));
+        }
+        for (TrieNode child : node.children.values()) {
+            propertyQuerySingleBlockIter(queries, res, child, blockId);
         }
     }
 
@@ -150,20 +186,47 @@ public class MSTTree {
             reputation[0] = split[0];
             reputation[1] = split[1];
         }
-        double timeCostMin = Double.valueOf(timeCost[0]);
-        double timeCostMax = Double.valueOf(timeCost[1]);
-        double reputationMin = Double.valueOf(reputation[0]);
-        double reputationMax = Double.valueOf(reputation[1]);
+        int timeCostMin = Double.valueOf(timeCost[0]).intValue();
+        int timeCostMax = Double.valueOf(timeCost[1]).intValue();
+        int reputationMin = Double.valueOf(reputation[0]).intValue();
+        int reputationMax = Double.valueOf(reputation[1]).intValue();
         List<Transaction> res = new ArrayList<>();
         for (Transaction tx : txs) {
-            double timeValue = tx.getTimeCostForDouble();
-            double repuValue = tx.getReputationForDouble();
-            if ((timeValue > timeCostMin) && (timeValue < timeCostMax) &&
-                    (repuValue > reputationMin) && (repuValue < reputationMax)) {
+            int timeValue = Double.valueOf(tx.getTimeCostForDouble()).intValue();
+            int repuValue = Double.valueOf(tx.getReputationForDouble()).intValue();
+            if (((timeValue >= timeCostMin) && (timeValue <= timeCostMax)) ||
+                    ((repuValue >= reputationMin) && (repuValue <= reputationMax))) {
                 res.add(tx);
             }
         }
         return res;
+    }
+
+    public List<Transaction> propertyQueryTopK(String type, int topK) {
+        PriorityQueue<Transaction> priorityQueue;
+        List<Transaction> res = new ArrayList<>();
+        if (type.equals("time_cost")) {
+            priorityQueue = new PriorityQueue<>(Transaction.compareByTimeCost);
+        } else {
+            priorityQueue = new PriorityQueue<>(Transaction.compareByReputation);
+        }
+        iter(priorityQueue, root);
+        for (int i = 0; i < topK; i++) {
+            res.add(priorityQueue.poll());
+        }
+        return res;
+    }
+
+    private void iter(PriorityQueue<Transaction> queue, TrieNode node) {
+        if (node == null) return;
+        if (node.haveBlock) {
+            for (Transaction transaction : node.block.getTransactions()) {
+                queue.add(transaction);
+            }
+        }
+        for (TrieNode child : node.children.values()) {
+            iter(queue, child);
+        }
     }
     class TrieNode {
         boolean haveBlock;

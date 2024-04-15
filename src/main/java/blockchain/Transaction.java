@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.Comparator;
+
 @Getter
 @Setter
 @AllArgsConstructor
@@ -34,4 +36,19 @@ public class Transaction {
     public int getIdForInt() {
         return Integer.parseInt(id);
     }
+
+    // 自定义比较器
+    public static Comparator<Transaction> compareByTimeCost = new Comparator<Transaction>() {
+        @Override
+        public int compare(Transaction o1, Transaction o2) {
+            return Double.compare(o1.getTimeCostForDouble(), o2.getTimeCostForDouble());
+        }
+    };
+
+    public static Comparator<Transaction> compareByReputation = new Comparator<Transaction>() {
+        @Override
+        public int compare(Transaction o1, Transaction o2) {
+            return Double.compare(o1.getReputationForDouble(), o2.getReputationForDouble());
+        }
+    };
 }

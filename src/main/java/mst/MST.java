@@ -28,33 +28,69 @@ public class MST implements Query {
         MSTTree mstTree = new MSTTree();
         mstTree.createMST(context);
         this.mstTree = mstTree;
+        System.out.println("mst构建完成");
     }
 
     @Override
-    public boolean singleTransactionQuery(String transactionId) {
-        return mstTree.singleTransactionQuery(transactionId);
+    public boolean singleTransactionQuery(String transactionId, String nodeId) {
+        return mstTree.singleTransactionQuery(transactionId, nodeId);
     }
 
     @Override
-    public boolean singleNodeQuery(String nodeId) {
-        List<Transaction> txs = mstTree.singleNodeQuery(nodeId);
-        if (!txs.isEmpty()) {
-            return true;
+    public boolean nodeQueryBySingleBlock(String nodeId, String blockId) {
+        List<Transaction> transactions = mstTree.singleNodeQuery(nodeId, blockId);
+        if (!transactions.isEmpty()) return true;
+        return false;
+    }
+
+    @Override
+    public boolean nodeQueryByAllBlock(String nodeId) {
+        List<Transaction> transactions = mstTree.singleNodeQueryAllBlock(nodeId);
+        if (!transactions.isEmpty()) return true;
+        return false;
+    }
+
+    @Override
+    public boolean propertyQueryBySingleBlock(Map<String, String> queries, String blockId) {
+        List<Transaction> transactions = mstTree.propertyQuerySingleBlock(queries, blockId);
+        if (transactions != null && !transactions.isEmpty()) return true;
+        return false;
+    }
+
+    @Override
+    public boolean propertyQueryByAllBlock(Map<String, String> queries) {
+        List<Transaction> transactions = mstTree.propertyQuery(queries);
+        if (!transactions.isEmpty()) return true;
+        return false;
+    }
+
+    @Override
+    public boolean propertyRangeQueryBySingleBlock(Map<String, String> queries, String blockId, int topK) {
+        if (topK == 0) {
+            List<Transaction> transactions = mstTree.propertyQuerySingleBlock(queries, blockId);
+            if (transactions != null && !transactions.isEmpty()) return true;
+        } else {
+            for (String type : queries.keySet()) {
+                List<Transaction> transactions = mstTree.propertyQueryTopK(type, topK);
+                if (!transactions.isEmpty()) return true;
+            }
         }
         return false;
     }
 
     @Override
-    public boolean propertyRangeQuery(Map<String, String> queries) {
-        List<Transaction> txs = mstTree.propertyQuery(queries);
-        if (!txs.isEmpty()) {
-            return true;
+    public boolean propertyRangeQueryByAllBlock(Map<String, String> queries, int topK) {
+        if (topK == 0) {
+            List<Transaction> transactions = mstTree.propertyQuery(queries);
+            if (!transactions.isEmpty()) return true;
+        } else {
+            for (String type : queries.keySet()) {
+                List<Transaction> transactions = mstTree.propertyQueryTopK(type, topK);
+                if (!transactions.isEmpty()) return true;
+            }
         }
         return false;
     }
 
-    @Override
-    public boolean mixQuery() {
-        return false;
-    }
+
 }

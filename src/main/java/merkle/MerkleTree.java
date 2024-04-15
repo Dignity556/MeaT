@@ -8,16 +8,15 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class MerkleTree {
+public class MerkleTree implements Serializable {
     private Leaf root;
     public static void createMerkleTree(Context context) {
         List<Block> blocks = context.getBlocks();
@@ -45,11 +44,12 @@ public class MerkleTree {
         List<Leaf> newLeaves = new ArrayList<>();
         int count = 0;//记录树中节点的总个数
 
-        if(leaves.size() == 1) {
+        if (leaves.size() == 1) {
             leaves.get(0).setFather(null);
             leaves.get(0).setId("root" + leaves.get(0).getBlock().getId());
-        }else{
-            for(int i = 0;i < leaves.size() - 1;i += 2) {
+            return leaves.get(0);
+        } else {
+            for (int i = 0; i < leaves.size() - 1; i += 2) {
                 Leaf father = new Leaf();
                 father.setLeft(leaves.get(i));
                 father.setRight(leaves.get(i + 1));
@@ -69,26 +69,28 @@ public class MerkleTree {
                 count += 1;
 //                System.out.println("Ok, we lost one, "+count+" nodes in total");
             }
+            return createMerkleIterator(newLeaves);
         }
-        return createMerkleIterator(leaves);
     }
 
-    public boolean singleTransactionQuery(String txId) {
-        if (dfs(root, txId) != null) {
+    public boolean singleTransactionQuery(String txId, String nodeId) {
+        if (dfs(root, txId, nodeId) != null) {
             return true;
         }
         return false;
     }
 
-    private Transaction dfs(Leaf leaf, String txId) {
-        if (leaf.getLeft() != null && leaf.getTransaction().getId().equals(txId)) {
+    private Transaction dfs(Leaf leaf, String txId, String nodeId) {
+        if (leaf.getLeft() == null && leaf.getTransaction() != null &&
+                leaf.getTransaction().getId().equals(txId) &&
+                leaf.getTransaction().getStartNode().getNodeId().equals(nodeId)) {
             return leaf.getTransaction();
         }
         if (leaf.getLeft() != null) {
-            return dfs(leaf.getLeft(), txId);
+            return dfs(leaf.getLeft(), txId, nodeId);
         }
         if (leaf.getRight() != null) {
-            return dfs(leaf.getRight(), txId);
+            return dfs(leaf.getRight(), txId, nodeId);
         }
         return null;
     }
@@ -139,18 +141,21 @@ public class MerkleTree {
 
     private List<Transaction> propertyQueryIter(Leaf leaf, String type, String[] timeCost,
                                                 String[] reputation, List<Transaction> txs) {
-        double timeCostMin = Double.valueOf(timeCost[0]);
-        double timeCostMax = Double.valueOf(timeCost[1]);
-        double reputationMin = Double.valueOf(reputation[0]);
-        double reputationMax = Double.valueOf(reputation[1]);
+        int timeCostMin = Double.valueOf(timeCost[0]).intValue();
+        int timeCostMax = Double.valueOf(timeCost[1]).intValue();
+        int reputationMin = Double.valueOf(reputation[0]).intValue();
+        int reputationMax = Double.valueOf(reputation[1]).intValue();
 
-        Transaction tx = leaf.getTransaction();
-        double timeValue = Double.valueOf(tx.getTimeCost());
-        double repuValue = Double.valueOf(tx.getReputation());
-        if (leaf.getLeft() == null && (tx.getType().equals(type) &&
-                (timeValue > timeCostMin) && (timeValue < timeCostMax) &&
-                (repuValue > reputationMin) && (repuValue < reputationMax))) {
-            txs.add(tx);
+
+        if (leaf.getLeft() == null) {
+            Transaction tx = leaf.getTransaction();
+            int timeValue = Double.valueOf(tx.getTimeCost()).intValue();
+            int repuValue = Double.valueOf(tx.getReputation()).intValue();
+            if ((tx.getType().equals(type) ||
+                    ((timeValue >= timeCostMin) && (timeValue <= timeCostMax)) ||
+                    ((repuValue >= reputationMin) && (repuValue <= reputationMax)))) {
+                txs.add(tx);
+            }
         }
         if (leaf.getLeft() != null) {
             propertyQueryIter(leaf.getLeft(), type, timeCost, reputation, txs);
@@ -159,5 +164,31 @@ public class MerkleTree {
             propertyQueryIter(leaf.getRight(), type, timeCost, reputation, txs);
         }
         return txs;
+    }
+
+    public List<Transaction> propertyQueryTopK(String type, int topK) {
+        PriorityQueue<Transaction> priorityQueue;
+        List<Transaction> res = new ArrayList<>();
+        if (type.equals("time_cost")) {
+            priorityQueue = new PriorityQueue<>(Transaction.compareByTimeCost);
+        } else {
+            priorityQueue = new PriorityQueue<>(Transaction.compareByReputation);
+        }
+        propertyQueryTopKIter(root, priorityQueue);
+        for (int i = 0; i < topK; i++) {
+            res.add(priorityQueue.poll());
+        }
+        return res;
+    }
+    private void propertyQueryTopKIter(Leaf leaf, PriorityQueue<Transaction> priorityQueue) {
+        if (leaf.getLeft() == null) {
+            priorityQueue.add(leaf.getTransaction());
+        }
+        if (leaf.getLeft() != null) {
+            propertyQueryTopKIter(leaf.getLeft(), priorityQueue);
+        }
+        if (leaf.getRight() != null) {
+            propertyQueryTopKIter(leaf.getRight(), priorityQueue);
+        }
     }
 }

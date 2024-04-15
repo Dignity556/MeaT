@@ -16,7 +16,6 @@ public class KaggleDataProcessor implements DataProcessor{
     @Override
     public Context getDataContext(String path) {
         BufferedReader reader = null;
-        Map<Node, List<Transaction>> nodeTxsMap = new HashMap<>();
         Map<String, Node> nodes = new HashMap<>(); // 全部节点
         Map<String, Block> blocks = new HashMap<>(); // 全部区块
         List<Transaction> transactions = new ArrayList<>(); // 全部交易
@@ -41,13 +40,13 @@ public class KaggleDataProcessor implements DataProcessor{
                 if (!blocks.containsKey(String.valueOf(blockId))) {
                     Block block = new Block(String.valueOf(blockId));
                     blocks.put(String.valueOf(blockId), block);
-                    System.out.println("Current block:" + blockId);
+//                    System.out.println("Current block:" + blockId);
                 }
                 transaction.setBeLongBlock(blocks.get(String.valueOf(blockId)));
                 transaction.setId(String.valueOf(count));
                 transaction.setTimestamp(String.valueOf(blockId)); // 设置时间戳平替
                 transaction.setTimeCost(String.valueOf(record.get(11)));
-                transaction.setType(String.valueOf(record.get(8)));
+                transaction.setType(String.valueOf(record.get(8))); // 使用某一列数据代表交易类型
                 if (record.get(5).equals("A")) {
                     transaction.setReputation(String.valueOf(Math.random() * 5));
                 } else if (record.get(5).equals("B")) {

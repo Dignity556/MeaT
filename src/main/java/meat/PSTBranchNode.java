@@ -44,8 +44,7 @@ public class PSTBranchNode {
         }
         Map<String, PSTBranchNodeItem> finalItems = new HashMap<>();
         for (String str : items.keySet()) {
-            if(items.get(str).getPreTransactions().size() != 0)
-            {
+            if (items.get(str).getPreTransactions().size() != 0) {
                 finalItems.put(str, items.get(str));
             }
         }
@@ -66,6 +65,7 @@ public class PSTBranchNode {
             PSTBranchNodeItem item = new PSTBranchNodeItem();
             String range = String.valueOf((min + (i - 1) * (max - min)) / (amount - 1)) +
                     "," + String.valueOf((min + i * (max - min)) / (amount - 1));
+            // 记录具体的范围与对应的交易
             items.put(range, item);
         }
         for (Transaction ts : transactions) {
@@ -76,24 +76,27 @@ public class PSTBranchNode {
         }
         Map<String, PSTBranchNodeItem> finalItems = new HashMap<>();
         for (String str : items.keySet()) {
-            if(items.get(str).getPreTransactions().size() != 0)
-            {
+            if (items.get(str).getPreTransactions().size() != 0) {
                 finalItems.put(str, items.get(str));
             }
         }
         return finalItems;
     }
 
+    /**
+     * 根据具体类型分交易
+     * @param transactions
+     * @return
+     */
     public Map<String, PSTBranchNodeItem> categoryByType(List<Transaction> transactions) {
         Map<String, PSTBranchNodeItem> extension = new HashMap<>();
-        for(Transaction tx: transactions)
-        {
+        for(Transaction tx: transactions) {
             String type = tx.getType();
-            if(!extension.containsKey(type)) {
+            if (!extension.containsKey(type)) {
                 PSTBranchNodeItem item = new PSTBranchNodeItem();
                 item.getPreTransactions().add(tx);
-                extension.put(type,item);
-            }else {
+                extension.put(type, item);
+            } else {
                 extension.get(type).getPreTransactions().add(tx);
             }
         }
@@ -104,8 +107,8 @@ public class PSTBranchNode {
         Map<String, PSTBranchNodeItem> returnItems = new HashMap<>();
         for (String key : items.keySet()) {
             if (items.get(key).getPreTransactions().size() == 0) {
-                System.out.println("A zero item is created");
-            } else if (items.get(key).getPreTransactions().size() == 1) {
+//                System.out.println("A zero item is created");
+            } else if (items.get(key).getPreTransactions().size() == 1) { // 设置branch下边的叶子节点，叶子节点存储实际的交易
                 PSTLeafNode leafNode = new PSTLeafNode();
                 leafNode.setTransaction(items.get(key).getPreTransactions().get(0));
                 leafNode.setPreBranch(items.get(key));

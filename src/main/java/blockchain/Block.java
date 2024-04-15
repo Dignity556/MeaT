@@ -8,6 +8,7 @@ import meat.MerkleGraphTree;
 import merkle.MerkleTree;
 import merklebplus.MerkleBPlusTree;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,7 +16,7 @@ import java.util.List;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class Block {
+public class Block implements Serializable {
     private String id;
     private List<Transaction> transactions = new ArrayList<>();
     private byte[] hashRoot;

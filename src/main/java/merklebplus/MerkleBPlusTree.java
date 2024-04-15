@@ -8,13 +8,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.io.Serializable;
 import java.util.List;
 
 @Getter
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class MerkleBPlusTree {
+public class MerkleBPlusTree implements Serializable {
     private BPlusTree<Transaction, Integer> bPlusTree;
     public static void createMerkleBPlusTree(Context context) {
         List<Block> blocks = context.getBlocks();

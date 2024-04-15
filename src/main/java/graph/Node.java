@@ -22,4 +22,9 @@ public class Node {
         Node n = (Node)obj;
         return this.nodeId.equals(n.getNodeId());
     }
+
+    @Override
+    public int hashCode() {
+        return this.nodeId.hashCode();
+    }
 }
