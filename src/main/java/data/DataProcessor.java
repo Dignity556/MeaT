@@ -1,5 +1,5 @@
 package data;
 
 public interface DataProcessor {
-    Context getDataContext(String path);
+    Context getDataContext(String path, int blockTxNum);
 }

@@ -37,6 +37,22 @@ public class MerkleTree implements Serializable {
             } catch (NoSuchAlgorithmException e) {
                 throw new RuntimeException(e);
             }
+
+            double[][] matrix = new double[transactions.size()][transactions.size()];
+            for (int i = 0; i < transactions.size(); i++) {
+                for (int j = 0; j < transactions.size(); j++) {
+                    if (i == j) {
+                        matrix[i][j] = 1;
+                    } else {
+                        if (transactions.get(i).getReputationForDouble() > transactions.get(j).getReputationForDouble() &&
+                                transactions.get(j).getTimeCostForDouble() > transactions.get(j).getTimeCostForDouble()) {
+                            matrix[i][j] = 1;
+                        } else {
+                            matrix[i][j] = 0;
+                        }
+                    }
+                }
+            }
         }
     }
 

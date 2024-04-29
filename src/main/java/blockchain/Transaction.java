@@ -24,6 +24,7 @@ public class Transaction {
     private String type;
     private Block beLongBlock;
     private Edge edge;
+    private int matrixId;
 
     public double getTimeCostForDouble() {
         return Double.parseDouble(timeCost);

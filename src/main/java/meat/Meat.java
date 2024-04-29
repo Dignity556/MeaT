@@ -114,7 +114,7 @@ public class Meat implements Query {
                 // topk为0表示不使用topk，作范围查询
                 if (topK == 0) {
                     List<Transaction> txs = mgt.getRoot().propertyRangeQuery(queries);
-                    return true;
+                    if (!txs.isEmpty()) return true;
                 } else {
                     for (String type : queries.keySet()) {
                         List<Transaction> transactions = mgt.getRoot().propertyQueryTopK(type, topK);
@@ -124,7 +124,6 @@ public class Meat implements Query {
                     }
                 }
             }
-
         }
         return false;
     }
@@ -149,5 +148,10 @@ public class Meat implements Query {
         return false;
     }
 
+    @Override
+    public int nodeAccessQuery(String sourceId, String targetId) {
+        List<Node> nodes = context.getNodes();
 
+        return 0;
+    }
 }

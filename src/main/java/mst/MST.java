@@ -28,6 +28,24 @@ public class MST implements Query {
         MSTTree mstTree = new MSTTree();
         mstTree.createMST(context);
         this.mstTree = mstTree;
+        for (Block block : context.getBlocks()) {
+            List<Transaction> transactions = block.getTransactions();
+            double[][] matrix = new double[transactions.size()][transactions.size()];
+            for (int i = 0; i < transactions.size(); i++) {
+                for (int j = 0; j < transactions.size(); j++) {
+                    if (i == j) {
+                        matrix[i][j] = 1;
+                    } else {
+                        if (transactions.get(i).getReputationForDouble() > transactions.get(j).getReputationForDouble() &&
+                                transactions.get(j).getTimeCostForDouble() > transactions.get(j).getTimeCostForDouble()) {
+                            matrix[i][j] = 1;
+                        } else {
+                            matrix[i][j] = 0;
+                        }
+                    }
+                }
+            }
+        }
         System.out.println("mst构建完成");
     }
 
@@ -90,6 +108,11 @@ public class MST implements Query {
             }
         }
         return false;
+    }
+
+    @Override
+    public int nodeAccessQuery(String sourceId, String targetId) {
+        return 0;
     }
 
 

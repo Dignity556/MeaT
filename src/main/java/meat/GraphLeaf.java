@@ -173,14 +173,17 @@ public class GraphLeaf implements Serializable {
     //确认属性在哪个item中
     public PSTExtensionNode typeExtensionFilter(String type, Map<String, PSTBranchNodeItem> branchNodeItems){
         PSTBranchNodeItem nodeItems = branchNodeItems.get(type);
-        return nodeItems.getNextExtension();
+        if (nodeItems != null) {
+            return nodeItems.getNextExtension();
+        }
+        return null;
     }
 
     //确认属性在哪个item中
     public List<Transaction> typeLeafFilter(String type, Map<String,PSTBranchNodeItem> branchNodeItems){
         List<Transaction> txs = new ArrayList<>();
         PSTBranchNodeItem nodeItems = branchNodeItems.get(type);
-        if (nodeItems.getNextLeaf() != null) {
+        if (nodeItems != null && nodeItems.getNextLeaf() != null) {
             txs = nodeItems.getNextLeaf().getTransactions();
         }
         return txs;

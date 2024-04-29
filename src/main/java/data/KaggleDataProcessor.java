@@ -14,7 +14,7 @@ import java.util.*;
 
 public class KaggleDataProcessor implements DataProcessor{
     @Override
-    public Context getDataContext(String path) {
+    public Context getDataContext(String path, int blockTxNum) {
         BufferedReader reader = null;
         Map<String, Node> nodes = new HashMap<>(); // 全部节点
         Map<String, Block> blocks = new HashMap<>(); // 全部区块
@@ -27,11 +27,13 @@ public class KaggleDataProcessor implements DataProcessor{
             iterator.next(); // 略过表头
             int count = 0; // 计数，同时也是交易id
             int blockId = 1; // 区块id
+            int txMatrixId = 0;
 
             while (iterator.hasNext()) {
                 // TODO 自定义每个区块存储交易的数量
-                if (count % 550 == 0 && count != 0) {
+                if (count % blockTxNum == 0 && count != 0) {
                     blockId++;
+                    txMatrixId = 0;
                 }
                 count++;
                 CSVRecord record = iterator.next();
@@ -43,6 +45,7 @@ public class KaggleDataProcessor implements DataProcessor{
 //                    System.out.println("Current block:" + blockId);
                 }
                 transaction.setBeLongBlock(blocks.get(String.valueOf(blockId)));
+                transaction.setMatrixId(txMatrixId++);
                 transaction.setId(String.valueOf(count));
                 transaction.setTimestamp(String.valueOf(blockId)); // 设置时间戳平替
                 transaction.setTimeCost(String.valueOf(record.get(11)));

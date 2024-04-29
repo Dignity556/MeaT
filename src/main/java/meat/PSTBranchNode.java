@@ -6,10 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Getter
 @Setter
@@ -83,24 +80,90 @@ public class PSTBranchNode {
         return finalItems;
     }
 
+    public Map<String, PSTBranchNodeItem> categoryByReputation2(List<Transaction> transactions, int amount) {
+        Map<String, PSTBranchNodeItem> items = new LinkedHashMap<>();
+        double max = Double.parseDouble(transactions.stream()
+                .max(Comparator.comparingDouble(Transaction::getReputationForDouble))
+                .get()
+                .getReputation());
+        double min = Double.parseDouble(transactions.stream()
+                .min(Comparator.comparingDouble(Transaction::getReputationForDouble))
+                .get()
+                .getReputation());
+        double rangeSize = (max - min) / amount;
+        for (int i = 0; i < amount; i++) {
+            String rangeKey = String.format("%.2f-%.2f", min + i * rangeSize, min + (i + 1) * rangeSize);
+            items.put(rangeKey, new PSTBranchNodeItem());
+        }
+        for (Transaction transaction : transactions) {
+            double value = transaction.getReputationForDouble();
+            int rangeIndex = (int) ((value - min) / rangeSize);
+            if (rangeIndex == amount) {
+                rangeIndex--; // Handle the case where value is equal to maxValue
+            }
+            String rangeKey = String.format("%.2f-%.2f", min + rangeIndex * rangeSize, min + (rangeIndex + 1) * rangeSize);
+            items.get(rangeKey).getPreTransactions().add(transaction);
+        }
+        Map<String, PSTBranchNodeItem> finalItems = new HashMap<>();
+        for (String str : items.keySet()) {
+            if (items.get(str).getPreTransactions().size() != 0) {
+                finalItems.put(str, items.get(str));
+            }
+        }
+        return finalItems;
+    }
+
+    public Map<String, PSTBranchNodeItem> categoryByTimeCost2(List<Transaction> transactions, int amount) {
+        Map<String, PSTBranchNodeItem> items = new LinkedHashMap<>();
+        double max = Double.parseDouble(transactions.stream()
+                .max(Comparator.comparingDouble(Transaction::getTimeCostForDouble))
+                .get()
+                .getTimeCost());
+        double min = Double.parseDouble(transactions.stream()
+                .min(Comparator.comparingDouble(Transaction::getTimeCostForDouble))
+                .get()
+                .getTimeCost());
+        double rangeSize = (max - min) / amount;
+        for (int i = 0; i < amount; i++) {
+            String rangeKey = String.format("%.2f-%.2f", min + i * rangeSize, min + (i + 1) * rangeSize);
+            items.put(rangeKey, new PSTBranchNodeItem());
+        }
+        for (Transaction transaction : transactions) {
+            double value = transaction.getTimeCostForDouble();
+            int rangeIndex = (int) ((value - min) / rangeSize);
+            if (rangeIndex == amount) {
+                rangeIndex--; // Handle the case where value is equal to maxValue
+            }
+            String rangeKey = String.format("%.2f-%.2f", min + rangeIndex * rangeSize, min + (rangeIndex + 1) * rangeSize);
+            items.get(rangeKey).getPreTransactions().add(transaction);
+        }
+        Map<String, PSTBranchNodeItem> finalItems = new HashMap<>();
+        for (String str : items.keySet()) {
+            if (items.get(str).getPreTransactions().size() != 0) {
+                finalItems.put(str, items.get(str));
+            }
+        }
+        return finalItems;
+    }
+
     /**
      * 根据具体类型分交易
      * @param transactions
      * @return
      */
     public Map<String, PSTBranchNodeItem> categoryByType(List<Transaction> transactions) {
-        Map<String, PSTBranchNodeItem> extension = new HashMap<>();
+        Map<String, PSTBranchNodeItem> itemMap = new LinkedHashMap<>();
         for(Transaction tx: transactions) {
             String type = tx.getType();
-            if (!extension.containsKey(type)) {
+            if (!itemMap.containsKey(type)) {
                 PSTBranchNodeItem item = new PSTBranchNodeItem();
                 item.getPreTransactions().add(tx);
-                extension.put(type, item);
+                itemMap.put(type, item);
             } else {
-                extension.get(type).getPreTransactions().add(tx);
+                itemMap.get(type).getPreTransactions().add(tx);
             }
         }
-        return extension;
+        return itemMap;
     }
 
     public Map<String, PSTBranchNodeItem> leafOrBranch(Map<String,PSTBranchNodeItem> items, PSTBranchNode branchNode) {

@@ -128,5 +128,10 @@ public class Merkle implements Query {
         return false;
     }
 
+    @Override
+    public int nodeAccessQuery(String sourceId, String targetId) {
+        return 0;
+    }
+
 
 }

@@ -58,4 +58,12 @@ public interface Query {
      * @return
      */
     boolean propertyRangeQueryByAllBlock(Map<String, String> queries, int topK);
+
+    /**
+     * 节点可达性查询
+     * @param sourceId 起始节点
+     * @param targetId 到达节点
+     * @return 跳数
+     */
+    int nodeAccessQuery(String sourceId, String targetId);
 }

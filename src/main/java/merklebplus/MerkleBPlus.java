@@ -129,4 +129,9 @@ public class MerkleBPlus implements Query {
         if (!res.isEmpty()) return true;
         return false;
     }
+
+    @Override
+    public int nodeAccessQuery(String sourceId, String targetId) {
+        return 0;
+    }
 }

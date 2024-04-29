@@ -30,6 +30,7 @@ public class MerkleGraphTree implements Serializable {
     public static void createMerkleGraphTree(Context context) {
         List<Block> blocks = context.getBlocks();
         int itemCount = 0; // item的id
+        List<Long> list = new ArrayList<>();
 
         // 每个区块创建mgt并挂载
         for (Block block : blocks) {
@@ -67,7 +68,25 @@ public class MerkleGraphTree implements Serializable {
             // 建立pst并将pst与mgt建立连接
             String[] filter= {"type", "time_cost", "reputation"};
             int amount = 3;
+
             PropertySemanticTrie.createPST(block, filter, amount);
+
+//            double[][] matrix = new double[transactions.size()][transactions.size()];
+//            for (int i = 0; i < transactions.size(); i++) {
+//                for (int j = 0; j < transactions.size(); j++) {
+//                    if (i == j) {
+//                        matrix[i][j] = 1;
+//                    } else {
+//                        if (transactions.get(i).getReputationForDouble() > transactions.get(j).getReputationForDouble() &&
+//                                transactions.get(j).getTimeCostForDouble() > transactions.get(j).getTimeCostForDouble()) {
+//                            matrix[i][j] = 1;
+//                        } else {
+//                            matrix[i][j] = 0;
+//                        }
+//                    }
+//                }
+//            }
+
         }
     }
 
