@@ -30,8 +30,6 @@ public class BPlusTree<T, V extends Comparable<V>> {
     //有参构造方法，可以设定B+树的阶
     public BPlusTree(Integer bTreeOrder){
         this.bTreeOrder = bTreeOrder;
-        //this.minNUmber = (int) Math.ceil(1.0 * bTreeOrder / 2.0);
-        //因为插入节点过程中可能出现超过上限的情况,所以这里要加1
         this.maxNumber = bTreeOrder + 1;
         this.root = new LeafNode<T, V>();
         this.left = null;
@@ -60,12 +58,6 @@ public class BPlusTree<T, V extends Comparable<V>> {
         if(t != null)
             this.root = t;
         this.left = (LeafNode<T, V>)this.root.refreshLeft();
-
-//        System.out.println("插入完成,当前根节点为:");
-//        for(int j = 0; j < this.root.number; j++) {
-//            System.out.print((V) this.root.keys[j] + " ");
-//        }
-//        System.out.println();
     }
 
     public void createMerkle() {
@@ -79,7 +71,7 @@ public class BPlusTree<T, V extends Comparable<V>> {
             List<Leaf> leaves = new ArrayList<>();
             for (Transaction tx : txs) {
                 if (tx == null) {
-//                    System.out.println("交易为空");
+
                 } else {
                     leaves.add(new Leaf(tx));
                 }
@@ -96,8 +88,6 @@ public class BPlusTree<T, V extends Comparable<V>> {
 
     private Leaf createMerkleIterator(List<Leaf> leaves) throws NoSuchAlgorithmException {
         List<Leaf> newLeaves = new ArrayList<>();
-        int count = 0;//记录树中节点的总个数
-
         if(leaves.size() == 1) {
             leaves.get(0).setFather(null);
             leaves.get(0).setId("root" + leaves.get(0).getBlock().getId());
@@ -113,97 +103,14 @@ public class BPlusTree<T, V extends Comparable<V>> {
                 leaves.get(i).setFather(father);
                 leaves.get(i+1).setFather(father);
                 newLeaves.add(father);
-                count += 1;
-//                System.out.println("Now is creating the MGT, this layer has "+count+" nodes");
             }
             if (leaves.size() % 2 == 1) {
                 Leaf newLeaf = leaves.get(leaves.size() - 1);
                 newLeaf.setId("leaf");
                 newLeaves.add(newLeaf);
-                count += 1;
-//                System.out.println("Ok, we lost one, "+count+" nodes in total");
             }
             return createMerkleIterator(newLeaves);
         }
-    }
-
-    public Transaction singleTransactionQuery(String txId) {
-        LeafNode cur = left;
-        while (cur != null) {
-            Transaction[] transactions = new Transaction[cur.values.length];
-            for (int i = 0; i < cur.values.length; i++) {
-                transactions[i] = (Transaction)cur.values[i];
-                if (transactions[i] != null && transactions[i].getId().equals(txId)) {
-                    return transactions[i];
-                }
-            }
-            cur = cur.getLeft();
-        }
-        return null;
-    }
-
-    public List<Transaction> singleNodeQuery(String nodeId) {
-        List<Transaction> txs = new ArrayList<>();
-        LeafNode cur = left;
-        // TODO 暂时使用直接遍历方式，后续采用merkle遍历
-        while (cur != null) {
-            Transaction[] transactions = new Transaction[cur.values.length];
-            for (int i = 0; i < cur.values.length; i++) {
-                transactions[i] = (Transaction)cur.values[i];
-            }
-            for (Transaction transaction : transactions) {
-                if (transaction != null && transaction.getStartNode().getNodeId().equals(nodeId)) {
-                    txs.add(transaction);
-                }
-            }
-            cur = cur.getRight();
-        }
-        return txs;
-    }
-
-    public List<Transaction> propertyQuery(Map<String, String> queries) {
-        List<Transaction> res = new ArrayList<>();
-        String type = null;
-        String[] timeCost = new String[2];
-        String[] reputation = new String[2];
-        if (queries.get("type") != null) {
-            type = queries.get("type");
-        }
-        if (queries.get("time_cost") != null) {
-            String[] split = queries.get("time_cost").split(",");
-            timeCost[0] = split[0];
-            timeCost[1] = split[1];
-        }
-        if (queries.get("reputation") != null) {
-            String[] split = queries.get("reputation").split(",");
-            reputation[0] = split[0];
-            reputation[1] = split[1];
-        }
-        int timeCostMin = Double.valueOf(timeCost[0]).intValue();
-        int timeCostMax = Double.valueOf(timeCost[1]).intValue();
-        int reputationMin = Double.valueOf(reputation[0]).intValue();
-        int reputationMax = Double.valueOf(reputation[1]).intValue();
-
-        LeafNode cur = getLeftLeaf();
-        while (cur != null) {
-            Transaction[] transactions = new Transaction[cur.values.length];
-            for (int i = 0; i < cur.values.length; i++) {
-                transactions[i] = (Transaction)cur.values[i];
-            }
-            for (Transaction tx : transactions) {
-                if (tx != null) {
-                    int timeValue = Double.valueOf(tx.getTimeCost()).intValue();
-                    int repuValue = Double.valueOf(tx.getReputation()).intValue();
-                    if ((tx.getType().equals(type) ||
-                            ((timeValue >= timeCostMin) && (timeValue <= timeCostMax)) ||
-                            ((repuValue >= reputationMin) && (repuValue <= reputationMax)))) {
-                        res.add(tx);
-                    }
-                }
-            }
-            cur = cur.getLeft();
-        }
-        return res;
     }
 
     private LeafNode getLeftLeaf() {
@@ -228,116 +135,7 @@ public class BPlusTree<T, V extends Comparable<V>> {
         return (LeafNode) res.get(res.size() - 1).get(0);
     }
 
-    public List<Transaction> propertyQueryTopK(String type, int topK) {
-        PriorityQueue<Transaction> priorityQueue;
-        List<Transaction> res = new ArrayList<>();
-        if (type.equals("time_cost")) {
-            priorityQueue = new PriorityQueue<>(Transaction.compareByTimeCost);
-        } else {
-            priorityQueue = new PriorityQueue<>(Transaction.compareByReputation);
-        }
-        LeafNode cur = getLeftLeaf();
-        while (cur != null) {
-            Transaction[] transactions = new Transaction[cur.values.length];
-            for (int i = 0; i < cur.values.length; i++) {
-                transactions[i] = (Transaction)cur.values[i];
-            }
-            for (Transaction tx : transactions) {
-                if (tx != null) {
-                    priorityQueue.add(tx);
-                }
-            }
-            cur = cur.getLeft();
-        }
-        for (int i = 0; i < topK; i++) {
-            res.add(priorityQueue.poll());
-        }
-        return res;
-    }
 
-    //多属性查询，map的size即是属性的个数
-    public Queue<Transaction> iterMerkle(Leaf root, Queue<Transaction> Queue){
-        if (root.getLeft() == null) {
-            Queue.add(root.getTransaction());
-        }
-        if (root.getLeft() != null) {
-            iterMerkle(root.getLeft(), Queue);
-        }
-        if (root.getRight() != null) {
-            iterMerkle(root.getRight(), Queue);
-        }
-        return Queue;
-    }
-
-    public Queue<Transaction> iterBPlus(LeafNode leafNode, ArrayList<LeafNode> nodes, Queue<Transaction> txQueue){
-        LeafNode pre=leafNode;
-        if (pre.childs.length!=0)
-        {
-            if(leafNode.childs[0]!=null)
-            {
-                iterBPlus((LeafNode) leafNode.childs[0],nodes,txQueue);
-            }
-
-        }
-
-        if (pre.getRight()!=null)
-        {
-            if (pre.getMerkleRoot()!=null)
-            {
-                nodes.add(pre);
-            }
-            iterBPlus(pre.right,nodes,txQueue);
-        }
-
-        for (LeafNode node:nodes)
-        {
-            Leaf root=node.merkleRoot;
-            iterMerkle(root,txQueue);
-        }
-        return txQueue;
-    }
-
-    public List<Transaction> mtquery(BPlusTree bPlusTree, Map<String,String> queries) throws NoSuchFieldException, IllegalAccessException {
-        List<Transaction> txs=new ArrayList<>();
-        Queue<Transaction> all_transactions=new LinkedList<>();
-        Queue<LeafNode> nodeQueue=new LinkedList<>();
-        ArrayList<LeafNode> nodes=new ArrayList<>();
-        all_transactions=iterBPlus(bPlusTree.left,nodes,all_transactions);
-        for (Transaction tx: all_transactions)
-        {
-            for (String query:queries.keySet())
-            {
-                if (satisfy(tx,query,queries.get(query)))
-                {
-                    txs.add(tx);
-                }
-            }
-        }
-        return txs;
-    }
-
-    public boolean satisfy(Transaction tx, String property, String target) throws NoSuchFieldException, IllegalAccessException {
-        Field field= tx.getClass().getDeclaredField(property);
-        field.setAccessible(true);
-        try {
-            double value=Double.parseDouble((String) field.get(tx));
-            String[] ranges=target.split(",");
-            double min=Double.valueOf(ranges[0]);
-            double max=Double.valueOf(ranges[1]);
-            if ((value <= 0 && min==0) || (value <= max && value >= min) || (max==20000 && value>=20000)) {
-                return true;
-            }else{
-                return false;
-            }
-        } catch (NumberFormatException e) {
-            if (target.equals((String) field.get(tx)))
-            {
-                return true;
-            }else{
-                return false;
-            }
-        }
-    }
 
     @Getter
     @Setter

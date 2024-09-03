@@ -42,7 +42,6 @@ public class PSTBranchNode {
         this.items = items;
     }
 
-    //按照属性值范围分类，假如属性的值是数值类型，用这个分类，默认0，100
     public Map<String, PSTBranchNodeItem> categoryByNumerical(List<Transaction> transactions, int amount, String property) throws IllegalAccessException, NoSuchFieldException {
         Map<String, PSTBranchNodeItem> items = new LinkedHashMap<>();
         double max=100000000;
@@ -76,7 +75,6 @@ public class PSTBranchNode {
         return finalItems;
     }
 
-    //按照属性值分类，假如多个属性都是以属性值的形式存在，调用这个
     public Map<String, PSTBranchNodeItem> categoryByValue(List<Transaction> transactions, String property) throws NoSuchFieldException, IllegalAccessException {
         Map<String, PSTBranchNodeItem> itemMap = new LinkedHashMap<>();
 
@@ -99,8 +97,7 @@ public class PSTBranchNode {
         Map<String, PSTBranchNodeItem> returnItems = new HashMap<>();
         for (String key : items.keySet()) {
             if (items.get(key).getPreTransactions().size() == 0) {
-//                System.out.println("A zero item is created");
-            } else if (items.get(key).getPreTransactions().size() == 1) { // 设置branch下边的叶子节点，叶子节点存储实际的交易
+            } else if (items.get(key).getPreTransactions().size() == 1) {
                 PSTLeafNode leafNode = new PSTLeafNode();
                 leafNode.setTransaction(items.get(key).getPreTransactions().get(0));
                 leafNode.setPreBranch(items.get(key));

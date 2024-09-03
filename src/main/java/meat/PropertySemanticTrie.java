@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.apache.poi.ss.formula.functions.T;
-import query.SkylineGraph;
 
 import java.lang.reflect.Field;
 import java.util.*;
@@ -57,19 +56,11 @@ public class PropertySemanticTrie {
         {
             itemMap=branchNode.categoryByValue(transactions,filterOrder[0]);
         }
-//        if (filterOrder[0].equals("type")) {
-//            itemMap = branchNode.categoryByType(transactions);
-//        } else if (filterOrder[0].equals("reputation")) {
-//            itemMap = branchNode.categoryByReputation2(transactions, amount);
-//        } else {
-//            itemMap = branchNode.categoryByTimeCost2(transactions, amount);
-//        }
         branchNode.setItems(itemMap);
         branchNode.setPrevious(rootExtension);
         // 如果item中只有一个交易，生成叶子节点，不是生成extension node
         Map<String, PSTBranchNodeItem> newItem = branchNode.leafOrBranch(itemMap, branchNode);
         block.getMgt().setSkylineMatrix(matrix);
-
         timeFlag = true;
         repuFlag = true;
         // 递归构建
@@ -172,8 +163,6 @@ public class PropertySemanticTrie {
         }
     }
 
-
-
     public static long matrix_row_merge()
     {
         long start=System.nanoTime();
@@ -185,15 +174,4 @@ public class PropertySemanticTrie {
         return (end-start);
     }
 
-    public static void main(String[] args) throws NoSuchFieldException, IllegalAccessException {
-        PropertySemanticTrie pst=new PropertySemanticTrie();
-        Transaction tx=new Transaction();
-        tx.setType("A");
-        tx.setTimestamp("123");
-        ArrayList<Transaction> transactions=new ArrayList<>();
-        transactions.add(tx);
-        String s=pst.judge("timestamp",transactions);
-        System.out.println(s);
-
-    }
 }

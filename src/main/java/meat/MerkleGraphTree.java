@@ -77,7 +77,6 @@ public class MerkleGraphTree implements Serializable {
         return time/block_size;
     }
 
-
     private static GraphLeaf createLowerMGT(List<GraphLeaf> leaves) {
         List<GraphLeaf> newLeaves = new ArrayList<>();
         if (leaves.size() == 1) {
@@ -90,7 +89,6 @@ public class MerkleGraphTree implements Serializable {
                 GraphLeaf father = new GraphLeaf();
                 father.setLeft(leaves.get(i));
                 father.setRight(leaves.get(i + 1));
-                // father.setSubTreeNode(leaves.get(i).getSubTreeNode());
                 father.setHashId(GraphLeaf.calculateSHA256(leaves.get(i).getHashId().toString()
                         + leaves.get(i + 1).getHashId().toString()));
                 father.setId("father");
@@ -126,7 +124,6 @@ public class MerkleGraphTree implements Serializable {
             return leaves.get(0);
         } else {
             for (int i = 0; i < (leaves.size() - 1); i += 2) {
-                // TODO leaf的id是否重要？
                 GraphLeaf father = new GraphLeaf();
                 father.setLeft(leaves.get(i));
                 father.setRight(leaves.get(i + 1));
