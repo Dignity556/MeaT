@@ -16,6 +16,15 @@ public interface Query {
     boolean singleTransactionQuery(String transactionId, String nodeId);
 
     /**
+     * 单交易查询
+     * 已知交易id，节点id，查询在哪个区块；
+     * @param transactionId 交易id
+     * @param nodeId 节点id
+     * @return 交易实例
+     */
+//    Transaction TransactionQuery(String transactionId, String nodeId);
+
+    /**
      * 查询某个节点在某个区块内的所有交易；
      * @param nodeId 节点id
      * @param blockId 区块id
@@ -36,28 +45,28 @@ public interface Query {
      * @param blockId 区块id
      * @return
      */
-    boolean propertyQueryBySingleBlock(Map<String, String> queries, String blockId);
+    boolean propertyQueryBySingleBlock(Map<String, String> queries, String blockId) throws NoSuchFieldException, IllegalAccessException;
 
     /**
      * 查询所有区块中，xxxxxxxxxxx
      * @param queries 查询指令
      * @return
      */
-    boolean propertyQueryByAllBlock(Map<String, String> queries);
+    boolean propertyQueryByAllBlock(Map<String, String> queries) throws NoSuchFieldException, IllegalAccessException;
 
     /**
      * 查询某个区块中，一个、两个、三个属性特定范围下的满足条件的所有交易；
      * @param queries 查询键值。键为查询的属性类型，值为具体的属性值或范围（范围使用逗号,隔开）
      * @return 交易实例
      */
-    boolean propertyRangeQueryBySingleBlock(Map<String, String> queries, String blockId, int topK);
+    boolean propertyRangeQueryBySingleBlock(Map<String, String> queries, String blockId, int topK) throws NoSuchFieldException, IllegalAccessException;
 
     /**
      * 查询所有区块中，xxxxxxxxxxx
      * @param queries
      * @return
      */
-    boolean propertyRangeQueryByAllBlock(Map<String, String> queries, int topK);
+    boolean propertyRangeQueryByAllBlock(Map<String, String> queries, int topK) throws NoSuchFieldException, IllegalAccessException;
 
     /**
      * 节点可达性查询
@@ -65,5 +74,5 @@ public interface Query {
      * @param targetId 到达节点
      * @return 跳数
      */
-    int nodeAccessQuery(String sourceId, String targetId);
+    long nodeAccessQuery(String sourceId, String targetId);
 }

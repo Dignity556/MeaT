@@ -3,21 +3,21 @@ package merkle;
 import blockchain.Block;
 import blockchain.Transaction;
 import data.Context;
+import graph.Node;
 import query.Query;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * 顶级类，应该只包含创建与查询方法
  */
 public class Merkle implements Query {
     private Context context;
-    public void createMerkle(Context context) {
-        MerkleTree.createMerkleTree(context);
+    public long createMerkle(Context context) {
+        long time = MerkleTree.createMerkleTree(context);
         this.context = context;
         System.out.println("merkle树构建完成");
+        return time;
     }
     @Override
     public boolean singleTransactionQuery(String transactionId, String nodeId) {
@@ -62,12 +62,12 @@ public class Merkle implements Query {
     }
 
     @Override
-    public boolean propertyQueryBySingleBlock(Map<String, String> queries, String blockId) {
+    public boolean propertyQueryBySingleBlock(Map<String, String> queries, String blockId) throws NoSuchFieldException, IllegalAccessException {
         List<Block> blocks = context.getBlocks();
         for (Block block : blocks) {
             if (block.getId().equals(blockId)) {
                 MerkleTree merkleTree = block.getMerkleTree();
-                List<Transaction> transactions = merkleTree.propertyQuery(queries);
+                List<Transaction> transactions = merkleTree.mtquery(MerkleTree.root,queries);
                 if (!transactions.isEmpty()) {
                     return true;
                 }
@@ -77,12 +77,12 @@ public class Merkle implements Query {
     }
 
     @Override
-    public boolean propertyQueryByAllBlock(Map<String, String> queries) {
+    public boolean propertyQueryByAllBlock(Map<String, String> queries) throws NoSuchFieldException, IllegalAccessException {
         List<Block> blocks = context.getBlocks();
         List<Transaction> res = new ArrayList<>();
         for (Block block : blocks) {
             MerkleTree merkleTree = block.getMerkleTree();
-            res.addAll(merkleTree.propertyQuery(queries));
+            res.addAll(merkleTree.mtquery(MerkleTree.root,queries));
         }
         if (!res.isEmpty()) {
             return true;
@@ -129,9 +129,53 @@ public class Merkle implements Query {
     }
 
     @Override
-    public int nodeAccessQuery(String sourceId, String targetId) {
-        return 0;
+    public long nodeAccessQuery(String sourceId, String targetId) {
+        List<Node> nodeList = context.getNodes();
+        List<Transaction> transactions = context.getTransactions();
+        Node source = null, target = null;
+        for (Node node : nodeList) {
+            node.setNeighbors(new ArrayList<>());
+            if (node.getNodeId().equals(sourceId)) {
+                source = node;
+            }
+            if (node.getNodeId().equals(targetId)) {
+                target = node;
+            }
+        }
+        for (Transaction transaction : transactions) {
+            Node startNode = transaction.getStartNode();
+            Node endNode = transaction.getEndNode();
+            startNode.getNeighbors().add(endNode);
+            endNode.getNeighbors().add(startNode);
+        }
+
+        if (sourceId.equals(targetId)) {
+            return 0;
+        }
+
+        Queue<Node> queue = new LinkedList<>();
+        Set<Node> visited = new HashSet<>();
+
+        queue.add(source);
+        visited.add(source);
+
+        int distance = -1;
+
+        while (!queue.isEmpty()) {
+            distance++;
+            for (int i = queue.size(); i > 0; i--) {
+                Node current = queue.poll();
+                if (current.equals(target)) {
+                    return distance;
+                }
+                for (Node neighbor : current.getNeighbors()) {
+                    if (!visited.contains(neighbor)) {
+                        queue.add(neighbor);
+                        visited.add(neighbor);
+                    }
+                }
+            }
+        }
+        return -1; // No path found
     }
-
-
 }

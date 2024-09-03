@@ -17,5 +17,6 @@ public class PSTBranchNodeItem {
     private ArrayList<Transaction> preTransactions = new ArrayList<>();
     private PSTLeafNode nextLeaf;
     private PSTExtensionNode nextExtension;
+    private PSTBranchNode prebranch;
     private String id;
 }

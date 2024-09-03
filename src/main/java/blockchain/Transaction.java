@@ -14,17 +14,48 @@ import java.util.Comparator;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Transaction {
-    private String id;
+
     // 时间戳
-    private String timestamp;
-    private String timeCost;
-    private String reputation; //相当于权重
-    private Node startNode; // node可以理解为user
-    private Node endNode;
-    private String type;
-    private Block beLongBlock;
-    private Edge edge;
+    public String timestamp;
+    public String timeCost;
+    public String reputation; //相当于权重
+    public String type;
+
+    public Block beLongBlock;
+    public Edge edge;
     private int matrixId;
+
+    public String id;
+    public Node startNode; //team
+    public String game_id; //Game
+    public String date;//比赛日期
+    public String home;//主场or客场
+    public Node endNode; // opponent
+    public String win_or_lose;//输赢情况
+
+    public String t_point;//得分
+    public String o_point;//对方得分
+    public String t_fieldgoal;//命中率
+    public String t_x3point;//三分命中率
+    public String t_freegoal;//罚球命中率
+    public String t_offrebound;//进攻篮板
+    public String t_totalrebound;//总篮板
+    public String t_assist;//助攻
+    public String t_steal;//抢断
+    public String t_block;//盖帽
+    public String t_turnover;//失误
+    public String t_fouls;//犯规
+
+    public String o_fieldgoal;//命中率
+    public String o_x3point;//三分命中率
+    public String o_freegoal;//罚球命中率
+    public String o_offrebound;//进攻篮板
+    public String o_totalrebound;//总篮板
+    public String o_assist;//助攻
+    public String o_steal;//抢断
+    public String o_block;//盖帽
+    public String o_turnover;//失误
+    public String o_fouls;//犯规
 
     public double getTimeCostForDouble() {
         return Double.parseDouble(timeCost);
@@ -33,6 +64,14 @@ public class Transaction {
     public double getReputationForDouble() {
         return Double.parseDouble(reputation);
     }
+    public double getGameidfordouble()
+    {
+        return Double.parseDouble(game_id);
+    }
+    public double getTPointForDouble(){
+        return Double.parseDouble(t_point);
+    }
+
 
     public int getIdForInt() {
         return Integer.parseInt(id);

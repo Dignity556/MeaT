@@ -7,8 +7,12 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import query.Constant;
+import query.QueryCase;
+import query.SkylineGraph;
 
 import java.io.Serializable;
+import java.lang.reflect.Field;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
@@ -17,9 +21,12 @@ import java.util.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class MerkleTree implements Serializable {
-    private Leaf root;
-    public static void createMerkleTree(Context context) {
+    public static Leaf root;
+    private double[][] skylineMatrix;
+    public static long createMerkleTree(Context context) {
+        SkylineGraph skylineGraph=new SkylineGraph();
         List<Block> blocks = context.getBlocks();
+        long time = 0L;
         for (Block block : blocks) {
             List<Transaction> transactions = block.getTransactions();
             List<Leaf> leaves = new ArrayList<>();
@@ -32,29 +39,82 @@ public class MerkleTree implements Serializable {
 
                 // 挂载至区块
                 MerkleTree merkleTree = new MerkleTree();
-                merkleTree.setRoot(root);
+                merkleTree.root=root;
                 block.setMerkleTree(merkleTree);
             } catch (NoSuchAlgorithmException e) {
                 throw new RuntimeException(e);
             }
 
-            double[][] matrix = new double[transactions.size()][transactions.size()];
-            for (int i = 0; i < transactions.size(); i++) {
-                for (int j = 0; j < transactions.size(); j++) {
-                    if (i == j) {
+            long start = System.currentTimeMillis();
+//            double[][] matrix = new double[transactions.size()][transactions.size()];
+//            for (int i = 0; i < transactions.size(); i++) {
+//                for (int j = 0; j < transactions.size(); j++) {
+//                    if (i == j) {
+//                        matrix[i][j] = 1;
+//                    } else {
+//                        if (transactions.get(i).getReputationForDouble() > transactions.get(j).getReputationForDouble() &&
+//                                transactions.get(j).getTimeCostForDouble() > transactions.get(j).getTimeCostForDouble()) {
+//                            matrix[i][j] = 1;
+//                        } else {
+//                            matrix[i][j] = 0;
+//                        }
+//                    }
+//                }
+//            }
+//            HashMap<String,ArrayList<String>> lattices=new HashMap<>();
+//            HashMap<String,ArrayList<Integer>> final_lattice=skylineGraph.concept_lattice(matrix,lattices);
+//            ArrayList<HashSet<Integer>> skyline_layers=skylineGraph.skyline_layer(final_lattice);
+            long end = System.currentTimeMillis();
+            time += (end - start);
+//            block.getMerkleTree().setSkylineMatrix(matrix);
+        }
+        return time;
+    }
+
+    public static long traceability_skyline(Context context,Merkle merkle) throws NoSuchFieldException, IllegalAccessException {
+        SkylineGraph skylineGraph=new SkylineGraph();
+        List<Block> blocks = context.getBlocks();
+        ArrayList<Transaction> transactions=new ArrayList<>();
+        long start = System.currentTimeMillis();
+        long time = 0L;
+        for (Block block : blocks) {
+            transactions.addAll(block.getTransactions());
+            int caseNum=block.getTransactions().size();
+            QueryCase queryCase = new QueryCase(context);
+            Map<String, Map<String, String>> cases = queryCase.getPropertyQuerySingleBlockCase(caseNum,2);
+                List<Map<String,String>> case_all=queryCase.getPropertyQueryCase(caseNum,2);
+                for (Map.Entry<String, Map<String, String>> entry : cases.entrySet()) {
+                    String blockId = entry.getKey();
+                    Map<String, String> queries = entry.getValue();
+                    merkle.propertyQueryBySingleBlock(queries, blockId);
+                }
+        }
+        double[][] matrix = new double[transactions.size()][transactions.size()];
+        for (int i = 0; i < transactions.size(); i++) {
+            for (int j = 0; j < transactions.size(); j++) {
+                if (i == j) {
+                    matrix[i][j] = 1;
+                } else {
+                    if (Double.parseDouble(transactions.get(i).getGame_id()) > Double.parseDouble(transactions.get(j).getGame_id()) &&
+                            Double.parseDouble(transactions.get(i).getT_point()) > Double.parseDouble(transactions.get(i).getT_point())) {
                         matrix[i][j] = 1;
                     } else {
-                        if (transactions.get(i).getReputationForDouble() > transactions.get(j).getReputationForDouble() &&
-                                transactions.get(j).getTimeCostForDouble() > transactions.get(j).getTimeCostForDouble()) {
-                            matrix[i][j] = 1;
-                        } else {
-                            matrix[i][j] = 0;
-                        }
+                        matrix[i][j] = 0;
                     }
                 }
             }
         }
+//        HashMap<String,ArrayList<String>> lattices=new HashMap<>();
+//        HashMap<String,ArrayList<Integer>> final_lattice=skylineGraph.concept_lattice(matrix,lattices);
+//        ArrayList<HashSet<Integer>> skyline_layers=skylineGraph.skyline_layer(final_lattice);
+        long end = System.currentTimeMillis();
+        time += (end - start);
+        return time;
     }
+
+
+
+
 
     private static Leaf createMerkleIterator(List<Leaf> leaves) throws NoSuchAlgorithmException {
         List<Leaf> newLeaves = new ArrayList<>();
@@ -196,6 +256,9 @@ public class MerkleTree implements Serializable {
         }
         return res;
     }
+
+
+
     private void propertyQueryTopKIter(Leaf leaf, PriorityQueue<Transaction> priorityQueue) {
         if (leaf.getLeft() == null) {
             priorityQueue.add(leaf.getTransaction());
@@ -207,4 +270,59 @@ public class MerkleTree implements Serializable {
             propertyQueryTopKIter(leaf.getRight(), priorityQueue);
         }
     }
+
+    //多属性查询，map的size即是属性的个数
+    public Queue<Transaction> iterMerkle(Leaf leaf, Queue<Transaction> priorityQueue){
+        if (leaf.getLeft() == null) {
+            priorityQueue.add(leaf.getTransaction());
+        }
+        if (leaf.getLeft() != null) {
+            iterMerkle(leaf.getLeft(), priorityQueue);
+        }
+        if (leaf.getRight() != null) {
+            iterMerkle(leaf.getRight(), priorityQueue);
+        }
+        return priorityQueue;
+    }
+
+    public List<Transaction> mtquery(Leaf leaf,Map<String,String> queries) throws NoSuchFieldException, IllegalAccessException {
+        List<Transaction> txs=new ArrayList<>();
+        Queue<Transaction> all_transactions=new LinkedList<>();
+        all_transactions=iterMerkle(leaf,all_transactions);
+        for (Transaction tx: all_transactions)
+        {
+            for (String query:queries.keySet())
+            {
+                if (satisfy(tx,query,queries.get(query)))
+                {
+                    txs.add(tx);
+                }
+            }
+        }
+        return txs;
+    }
+
+    public boolean satisfy(Transaction tx, String property, String target) throws NoSuchFieldException, IllegalAccessException {
+        Field field= tx.getClass().getDeclaredField(property);
+        field.setAccessible(true);
+        try {
+            double value=Double.parseDouble((String) field.get(tx));
+            String[] ranges=target.split(",");
+            double min=Double.valueOf(ranges[0]);
+            double max=Double.valueOf(ranges[1]);
+            if ((value <= 0 && min==0) || (value <= max && value >= min) || (max==20000 && value>=20000)) {
+                return true;
+            }else{
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            if (target.equals((String) field.get(tx)))
+            {
+                return true;
+            }else{
+                return false;
+            }
+        }
+    }
+
 }

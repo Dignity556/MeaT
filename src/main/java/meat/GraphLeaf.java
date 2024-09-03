@@ -85,6 +85,15 @@ public class GraphLeaf implements Serializable {
             return false;
         }
     }
+    public Transaction retrunTransactionQuery(String txId)
+    {
+        if (dfs(this, txId) != null) {
+            return dfs(this,txId);
+        } else {
+            return null;
+        }
+    }
+
     private Transaction dfs(GraphLeaf leaf, String txId) {
         if (leaf.getLeft() == null && leaf.getEdge() != null &&
                 leaf.getEdge().getTransaction().getId().equals(txId)) {
@@ -102,15 +111,18 @@ public class GraphLeaf implements Serializable {
     public List<Transaction> propertyRangeQuery(Map<String, String> queries) {
         PSTBranchNode branchNode = extensionNode.getNextItem();
         Map<String, PSTBranchNodeItem> items = branchNode.getItems();
-
         List<Transaction> txs = new ArrayList<>();
         Queue<PSTExtensionNode> extensionQueue = new LinkedList<>();
+        Map<String, String> newQueries = new HashMap<>();
+        for (Map.Entry<String, String> entry : queries.entrySet()) {
+            newQueries.put(entry.getKey(), entry.getValue());
+        }
         if (queries.containsKey("type")) {
-            extensionQueue.add(typeExtensionFilter(queries.get("type"), items));
-            txs.addAll(typeLeafFilter(queries.get("type"), items));
-            queries.remove("type");
+            extensionQueue.add(typeExtensionFilter(newQueries.get("type"), items));
+            txs.addAll(typeLeafFilter(newQueries.get("type"), items));
+            newQueries.remove("type");
         } else {
-            for (String key : queries.keySet()) {
+            for (String key : newQueries.keySet()) {
                 if (items.get(key) != null && items.get(key).getNextExtension() != null) {
                     extensionQueue.add(items.get(key).getNextExtension());
                 }
@@ -119,10 +131,9 @@ public class GraphLeaf implements Serializable {
                 }
             }
         }
-
         // 第二层用递归方法
-        if (queries.size() != 0) {
-           txs.addAll(iterateRangeQueryPST(extensionQueue, queries));
+        if (newQueries.size() != 0) {
+           txs.addAll(iterateRangeQueryPST(extensionQueue, newQueries));
         }
         return txs;
     }
@@ -160,13 +171,152 @@ public class GraphLeaf implements Serializable {
         }else {
             while (extensionQueue.size() != 0) {
                 PSTExtensionNode pre = extensionQueue.peek();
-                Map<String,PSTBranchNodeItem> items = pre.getNextItem().getItems();
-                txs.addAll(valueLeafFilter("time_cost",queries.get("time_cost"), items));
-                extensionQueue.addAll(valueExtensionFilter("time_cost",queries.get("time_cost"), items));
+                if (pre != null) {
+                    Map<String,PSTBranchNodeItem> items = pre.getNextItem().getItems();
+                    txs.addAll(valueLeafFilter("time_cost",queries.get("time_cost"), items));
+                    extensionQueue.addAll(valueExtensionFilter("time_cost",queries.get("time_cost"), items));
+                }
                 extensionQueue.poll();
             }
         }
         return txs;
+    }
+
+    public List<Transaction> mpquery(Map<String, String> queries) throws NoSuchFieldException, IllegalAccessException {
+        PSTExtensionNode pre_ex=extensionNode;
+        PSTBranchNode pre_bracnch = extensionNode.getNextItem();
+        Map<String, PSTBranchNodeItem> pre_items = pre_bracnch.getItems();
+        List<Transaction> txs = new ArrayList<>();
+        Queue<PSTExtensionNode> extensionQueue = new LinkedList<>();
+        Map<String, String> newQueries = new HashMap<>();
+        for (Map.Entry<String, String> entry : queries.entrySet()) {
+            newQueries.put(entry.getKey(), entry.getValue());
+        }
+        extensionQueue.add(pre_ex);
+        // 从头开始采用递归方法
+        if (iterMTquery(extensionQueue, newQueries)!=null && extensionQueue.size()!=0)
+        {
+            txs.addAll(iterMTquery(extensionQueue, newQueries));
+        }
+        return txs;
+    }
+
+    public List<Transaction> iterMTquery(Queue<PSTExtensionNode> extensionQueue, Map<String, String> queries) throws NoSuchFieldException, IllegalAccessException {
+        List<Transaction> transactions=new ArrayList<>();
+        PSTExtensionNode pre_ex=extensionQueue.peek();
+        PSTBranchNode pre_branch=pre_ex.getNextItem();
+        Map<String, PSTBranchNodeItem> pre_items=pre_branch.getItems();
+        int round=0;
+        boolean flag=true;
+        while(extensionQueue.size()!=0)
+        {
+            //如果包含这个属性
+            if (queries.containsKey(pre_ex.getProperty()))
+            {
+//                System.out.println("pro");
+                if (pre_items.keySet().isEmpty())
+                {
+                    extensionQueue.poll();
+                }
+                //遍历branchitems
+                for (String range:pre_items.keySet())
+                {
+                    //如果是数值类型，判断在哪个范围内，更新队列和多个pre
+                    if (PropertySemanticTrie.judge(pre_ex.getProperty(), pre_items.get(range).getPreTransactions()).equals("numerical"))
+                    {
+                        if (isInRange(range, queries.get(pre_ex.getProperty())))
+                        {
+                            pre_ex=pre_items.get(range).getNextExtension();
+                            //判断branchitem还有没有下一个extensionnode
+                            if(pre_ex==null)
+                            {
+                                transactions.addAll(pre_items.get(range).getNextLeaf().getTransactions());
+                                extensionQueue.poll();
+                                pre_ex=extensionQueue.peek();
+                                break;
+                            }else{
+                                extensionQueue.add(pre_ex);
+                                extensionQueue.poll();
+                                pre_ex=extensionQueue.peek();
+                                pre_branch=pre_ex.getNextItem();
+                                pre_items=pre_branch.getItems();
+                                break;
+                            }
+                        }
+//                        System.out.println("num");
+                    }
+                    //如果是属性类型，直接判断是否一致就行，更新队列和多个pre
+                    else{
+                        if (range.equals(queries.get(pre_ex.getProperty())))
+                        {
+                            pre_ex=pre_items.get(range).getNextExtension();
+                            if(pre_ex==null)
+                            {
+                                transactions.addAll(pre_items.get(range).getNextLeaf().getTransactions());
+                                extensionQueue.poll();
+                                pre_ex=extensionQueue.peek();
+                                break;
+                            }else{
+                                extensionQueue.add(pre_ex);
+                                extensionQueue.poll();
+                                pre_ex=extensionQueue.peek();
+                                pre_branch=pre_ex.getNextItem();
+                                pre_items=pre_branch.getItems();
+                                break;
+                            }
+                        }else{
+                            flag=false;
+                        }
+//                        System.out.println("value");
+                    }
+                }
+                if (flag==false)
+                {
+                    return null;
+                }
+            }
+            //如果不包含，则将当前的extensionnode的所有branchitem的所有儿子节点加入到队列中
+            else
+            {
+                for (String range:pre_items.keySet())
+                {
+                    PSTBranchNodeItem item=pre_items.get(range);
+                    pre_ex= item.getNextExtension();
+                    //判断branchitem还有没有下一个extensionnode
+                    if(pre_ex==null)
+                    {
+                        transactions.addAll(pre_items.get(range).getNextLeaf().getTransactions());
+                    }else{
+                        extensionQueue.add(pre_ex);
+                    }
+                }
+                extensionQueue.poll();
+                if (extensionQueue.size()!=0)
+                {
+                    pre_ex=extensionQueue.peek();
+                    pre_branch=pre_ex.getNextItem();
+                    pre_items=pre_branch.getItems();
+                }
+            }
+            round+=1;
+//            System.out.println("round:"+round);
+        }
+
+        return transactions;
+    }
+
+    public boolean isInRange(String range, String target)
+    {
+        String[] ranges=range.split("-");
+        double min=Double.valueOf(ranges[0]);
+        double max=Double.valueOf(ranges[1]);
+        String[] targets=target.split(",");
+        double value = Double.valueOf(targets[0]);
+        if ((value <= 0 && min==0) || (value <= max && value >= min) || (max==20000 && value>=20000)) {
+            return true;
+        }else{
+            return false;
+        }
     }
 
 

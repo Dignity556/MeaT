@@ -3,6 +3,8 @@ package query;
 import blockchain.Block;
 import blockchain.Transaction;
 import data.Context;
+import data.DataProcessor;
+import data.KaggleDataProcessor;
 import graph.Node;
 
 import java.util.*;
@@ -18,7 +20,7 @@ public class QueryCase {
 
     public QueryCase(Context context) {
         this.context = context;
-        getRange();
+//        getRange();
     }
     public Map<String, String> getSingleTransactionQueryCase(int caseNum) {
         Map<String, String> txBlockMap = new HashMap<>();
@@ -55,31 +57,111 @@ public class QueryCase {
         return nodeIds;
     }
 
-    public Map<String, Map<String, String>> getPropertyQuerySingleBlockCase(int caseNum) {
+    public Map<String, Map<String, String>> getPropertyQuerySingleBlockCase(int caseNum,int queryNum) {
         List<Block> blocks = context.getBlocks();
+        String[] properties={"game_id", "home", "win_or_lose", "t_point", "t_fieldgoal", "t_x3point", "t_freegoal", "t_offrebound", "t_totalrebound", "t_assist", "t_steal", "t_block", "t_turnover", "t_fouls", "o_point", "o_fieldgoal", "o_x3point", "o_freegoal", "o_offrebound", "o_totalrebound", "o_assist", "o_steal", "o_block", "o_turnover", "o_fouls"};
+        String[] w_o_l={"L","W"};
+        String[] home={"Away","Home"};
+        ArrayList<String> all_properties=new ArrayList<>();
+        ArrayList<String> lowrange_pro=new ArrayList<>();
+        ArrayList<String> midrange_pro=new ArrayList<>();
+        ArrayList<String> bigrange_pro=new ArrayList<>();
+        all_properties.addAll(Arrays.asList(properties));
+        //0-1
+        lowrange_pro.addAll(Arrays.asList(new String[]{"t_fieldgoal", "t_x3point", "t_freegoal", "o_fieldgoal", "o_x3point", "o_freegoal"}));
+        //0-82
+        midrange_pro.addAll(Arrays.asList(new String[]{"game_id","t_offrebound", "t_totalrebound", "t_assist", "t_steal", "t_block", "t_turnover", "t_fouls","o_offrebound", "o_totalrebound", "o_assist", "o_steal", "o_block", "o_turnover", "o_fouls"}));
+        //50-200
+        bigrange_pro.addAll(Arrays.asList(new String[]{"t_point","o_point"}));
         Map<String, Map<String, String>> blockProMap = new HashMap<>();
         for (int i = 0; i < caseNum; i++) {
             Block block = blocks.get(random.nextInt(blocks.size()));
             Map<String, String> map = new HashMap<>();
-            map.put("type", "1");
-            String rangeTimeCost = getRangeTimeCost();
-            String rangeReputation = getRangeReputation();
-            map.put("time_cost", rangeTimeCost + "," + rangeTimeCost);
-            map.put("reputation", rangeReputation + "," + rangeReputation);
-            blockProMap.put(block.getId(), map);
+            List<Integer> numbers = new ArrayList<>();
+            while (numbers.size() < queryNum) {
+                double randomNumber = Math.random() * 25; // 生成0到99之间的随机数
+                int intRandomNumber = (int)randomNumber;
+                if (!numbers.contains(intRandomNumber)) {
+                    numbers.add(intRandomNumber);
+                }
+            }
+            for (int j = 0; j<queryNum; j++){
+                String pre=all_properties.get(numbers.get(j));
+                if (lowrange_pro.contains(pre))
+                {
+                    double value=Math.random() * 0.75;
+                    map.put(pre, String.valueOf(value)+","+String.valueOf(value));
+                }else if (midrange_pro.contains(pre))
+                {
+                    int value=random.nextInt(83);
+                    map.put(pre,String.valueOf(value)+","+String.valueOf(value));
+                }else if (bigrange_pro.contains(pre))
+                {
+                    int value=random.nextInt(71)+70;
+                    map.put(pre,String.valueOf(value)+","+String.valueOf(value));
+                }else if (pre.equals("home"))
+                {
+                    int value=random.nextInt(2);
+                    map.put(pre,w_o_l[value]);
+                }else if(pre.equals("home")){
+                    int value=random.nextInt(2);
+                    map.put(pre,home[value]);
+                }
+                blockProMap.put(block.getId(), map);
+            }
         }
         return blockProMap;
     }
 
-    public List<Map<String, String>> getPropertyQueryCase(int caseNum) {
+    public List<Map<String, String>> getPropertyQueryCase(int caseNum, int queryNum) {
         List<Map<String, String>> queries = new ArrayList<>();
+        String[] properties={"game_id", "home", "win_or_lose", "t_point", "t_fieldgoal", "t_x3point", "t_freegoal", "t_offrebound", "t_totalrebound", "t_assist", "t_steal", "t_block", "t_turnover", "t_fouls", "o_point", "o_fieldgoal", "o_x3point", "o_freegoal", "o_offrebound", "o_totalrebound", "o_assist", "o_steal", "o_block", "o_turnover", "o_fouls"};
+        String[] w_o_l={"L","W"};
+        String[] home={"Away","Home"};
+        ArrayList<String> all_properties=new ArrayList<>();
+        ArrayList<String> lowrange_pro=new ArrayList<>();
+        ArrayList<String> midrange_pro=new ArrayList<>();
+        ArrayList<String> bigrange_pro=new ArrayList<>();
+        all_properties.addAll(Arrays.asList(properties));
+        //0-1
+        lowrange_pro.addAll(Arrays.asList(new String[]{"t_fieldgoal", "t_x3point", "t_freegoal", "o_fieldgoal", "o_x3point", "o_freegoal"}));
+        //0-82
+        midrange_pro.addAll(Arrays.asList(new String[]{"game_id","t_offrebound", "t_totalrebound", "t_assist", "t_steal", "t_block", "t_turnover", "t_fouls","o_offrebound", "o_totalrebound", "o_assist", "o_steal", "o_block", "o_turnover", "o_fouls"}));
+        //50-200
+        bigrange_pro.addAll(Arrays.asList(new String[]{"t_point","o_point"}));
         for (int i = 0; i < caseNum; i++) {
             Map<String, String> map = new HashMap<>();
-            map.put("type", "1");
-            String rangeTimeCost = getRangeTimeCost();
-            String rangeReputation = getRangeReputation();
-            map.put("time_cost", rangeTimeCost + "," + rangeTimeCost);
-            map.put("reputation", rangeReputation + "," + rangeReputation);
+            List<Integer> numbers = new ArrayList<>();
+            while (numbers.size() < queryNum) {
+                double randomNumber = Math.random() * 25; // 生成0到99之间的随机数
+                int intRandomNumber = (int)randomNumber;
+                if (!numbers.contains(intRandomNumber)) {
+                    numbers.add(intRandomNumber);
+                }
+            }
+            for (int j = 0; j<queryNum; j++){
+                String pre=all_properties.get(numbers.get(j));
+                if (lowrange_pro.contains(pre))
+                {
+                    double value=Math.random() * 0.75;
+                    map.put(pre, String.valueOf(value)+","+String.valueOf(value));
+                }else if (midrange_pro.contains(pre))
+                {
+                    int value=random.nextInt(83);
+                    map.put(pre,String.valueOf(value)+","+String.valueOf(value));
+                }else if (bigrange_pro.contains(pre))
+                {
+                    int value=random.nextInt(71)+70;
+                    map.put(pre,String.valueOf(value)+","+String.valueOf(value));
+                }else if (pre.equals("home"))
+                {
+                    int value=random.nextInt(2);
+                    map.put(pre,w_o_l[value]);
+                }else if(pre.equals("home")){
+                    int value=random.nextInt(2);
+                    map.put(pre,home[value]);
+                }
+            }
             queries.add(map);
         }
         return queries;
@@ -91,7 +173,7 @@ public class QueryCase {
         for (int i = 0; i < caseNum; i++) {
             Block block = blocks.get(random.nextInt(blocks.size()));
             Map<String, String> map = new HashMap<>();
-            map.put("type", "1");
+            map.put("type", getType());
             String rangeTimeCost1 = getRangeTimeCost();
             String rangeTimeCost2 = getRangeTimeCost();
             if (Double.valueOf(rangeTimeCost1) > Double.valueOf(rangeTimeCost2)) {
@@ -117,7 +199,7 @@ public class QueryCase {
         List<Map<String, String>> queries = new ArrayList<>();
         for (int i = 0; i < caseNum; i++) {
             Map<String, String> map = new HashMap<>();
-            map.put("type", "1");
+            map.put("type", getType());
             String rangeTimeCost1 = getRangeTimeCost();
             String rangeTimeCost2 = getRangeTimeCost();
             if (Double.valueOf(rangeTimeCost1) > Double.valueOf(rangeTimeCost2)) {
@@ -169,6 +251,19 @@ public class QueryCase {
         return queries;
     }
 
+    public List<Map<String, String>> getNodeAccessQueryCase(int caseNum) {
+        List<Node> nodes = context.getNodes();
+        List<Map<String, String>> queries = new ArrayList<>();
+        for (int i = 0; i < caseNum; i++) {
+            Node source = nodes.get(random.nextInt(nodes.size()));
+            Node target = nodes.get(random.nextInt(nodes.size()));
+            Map<String, String> map = new HashMap<>();
+            map.put(source.getNodeId(), target.getNodeId());
+            queries.add(map);
+        }
+        return queries;
+    }
+
     private void getRange() {
         List<Transaction> transactions = context.getTransactions();
         double timeMax = 0, timeMin = 0;
@@ -195,6 +290,12 @@ public class QueryCase {
     private String getRangeReputation() {
         int repu = random.nextInt((int) repuMax - (int) repuMin + 1) + (int) repuMin;
         return String.valueOf(repu);
+    }
+
+    private String getType() {
+        List<Transaction> transactions = context.getTransactions();
+        Transaction transaction = transactions.get(random.nextInt(transactions.size()));
+        return transaction.getType();
     }
 
 }

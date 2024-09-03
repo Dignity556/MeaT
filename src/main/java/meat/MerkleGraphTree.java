@@ -22,16 +22,18 @@ public class MerkleGraphTree implements Serializable {
     private GraphLeaf root; // mgt结构的根节点
     private Block belongBLock; // 该mgt归属区块
     private GraphNodeLink gnl;
+    private double[][] skylineMatrix;
 
     /**
      * 该方法逻辑为直接生成全部区块mgt
      * @param context 上下文对象
      */
-    public static void createMerkleGraphTree(Context context) {
+    public static long createMerkleGraphTree(Context context,String[] filter) throws NoSuchFieldException, IllegalAccessException {
         List<Block> blocks = context.getBlocks();
+        // 清除PropertySemanticTrie因为静态类一直积累的矩阵构建时间
+        PropertySemanticTrie.matrixTime = 0;
         int itemCount = 0; // item的id
-        List<Long> list = new ArrayList<>();
-
+        long time=0;
         // 每个区块创建mgt并挂载
         for (Block block : blocks) {
             int leafId = 0;
@@ -66,29 +68,15 @@ public class MerkleGraphTree implements Serializable {
             block.setMgt(mgt);
 
             // 建立pst并将pst与mgt建立连接
-            String[] filter= {"type", "time_cost", "reputation"};
-            int amount = 3;
+            int amount = 10;
 
-            PropertySemanticTrie.createPST(block, filter, amount);
-
-//            double[][] matrix = new double[transactions.size()][transactions.size()];
-//            for (int i = 0; i < transactions.size(); i++) {
-//                for (int j = 0; j < transactions.size(); j++) {
-//                    if (i == j) {
-//                        matrix[i][j] = 1;
-//                    } else {
-//                        if (transactions.get(i).getReputationForDouble() > transactions.get(j).getReputationForDouble() &&
-//                                transactions.get(j).getTimeCostForDouble() > transactions.get(j).getTimeCostForDouble()) {
-//                            matrix[i][j] = 1;
-//                        } else {
-//                            matrix[i][j] = 0;
-//                        }
-//                    }
-//                }
-//            }
-
+            time+=PropertySemanticTrie.createPST(block, filter, amount);
+            PropertySemanticTrie.matrix_row_merge();
         }
+        int block_size= blocks.size();
+        return time/block_size;
     }
+
 
     private static GraphLeaf createLowerMGT(List<GraphLeaf> leaves) {
         List<GraphLeaf> newLeaves = new ArrayList<>();

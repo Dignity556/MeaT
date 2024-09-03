@@ -5,14 +5,13 @@ import blockchain.Transaction;
 import graph.Node;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 
-public class KaggleDataProcessor implements DataProcessor{
+public class TradeDataProcessor implements DataProcessor{
     @Override
     public Context getDataContext(String path, int blockTxNum) {
         BufferedReader reader = null;
@@ -27,13 +26,11 @@ public class KaggleDataProcessor implements DataProcessor{
             iterator.next(); // 略过表头
             int count = 0; // 计数，同时也是交易id
             int blockId = 1; // 区块id
-            int txMatrixId = 0;
 
             while (iterator.hasNext()) {
                 // TODO 自定义每个区块存储交易的数量
                 if (count % blockTxNum == 0 && count != 0) {
                     blockId++;
-                    txMatrixId = 0;
                 }
                 count++;
                 CSVRecord record = iterator.next();
@@ -45,32 +42,34 @@ public class KaggleDataProcessor implements DataProcessor{
 //                    System.out.println("Current block:" + blockId);
                 }
                 transaction.setBeLongBlock(blocks.get(String.valueOf(blockId)));
-                transaction.setMatrixId(txMatrixId++);
                 transaction.setId(String.valueOf(count));
                 transaction.setTimestamp(String.valueOf(blockId)); // 设置时间戳平替
-                transaction.setTimeCost(String.valueOf(record.get(11)));
-                transaction.setType(String.valueOf(record.get(8))); // 使用某一列数据代表交易类型
-                if (record.get(5).equals("A")) {
-                    transaction.setReputation(String.valueOf(Math.random() * 5));
-                } else if (record.get(5).equals("B")) {
-                    transaction.setReputation(String.valueOf(Math.random() * 10));
-                } else {
-                    transaction.setReputation(String.valueOf(Math.random() * 15));
-                }
+                transaction.setTimeCost(String.valueOf(record.get(3)));
+                transaction.setType(String.valueOf(record.get(6))); // 使用某一列数据代表交易类型
+                transaction.setReputation(record.get(5));
 
-                // 相当于只记录了起始node
+                // 记录了起始node和到达node
                 if (!nodes.containsKey(record.get(0))) {
                     Node node = new Node(record.get(0));
                     nodes.put(record.get(0), node);
                 }
-                transaction.setStartNode(nodes.get(record.get(0)));
-                transaction.setEndNode(new Node(record.get(1))); // 结束node无所谓
+                if (!nodes.containsKey(record.get(1))) {
+                    Node node = new Node(record.get(1));
+                    nodes.put(record.get(1), node);
+                }
+                Node startNode = nodes.get(record.get(0));
+                Node endNode = nodes.get(record.get(1));
+                startNode.getNeighbors().add(endNode);
+                endNode.getNeighbors().add(startNode);
+                transaction.setStartNode(startNode);
+                transaction.setEndNode(endNode); // 结束node
                 blocks.get(String.valueOf(blockId)).getTransactions().add(transaction);
                 transactions.add(transaction);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
         List<Block> newBLocks = new ArrayList<>();
         for (Map.Entry<String, Block> entry : blocks.entrySet()) {
             newBLocks.add(entry.getValue());

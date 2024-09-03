@@ -25,4 +25,44 @@ public class PSTExtensionNode {
         this.preItem = branchNodeItem;
         branchNodeItem.setNextExtension(this);
     }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public PSTBranchNodeItem getPreItem() {
+        return preItem;
+    }
+
+    public void setPreItem(PSTBranchNodeItem preItem) {
+        this.preItem = preItem;
+    }
+
+    public MerkleGraphTree getRootMGT() {
+        return rootMGT;
+    }
+
+    public void setRootMGT(MerkleGraphTree rootMGT) {
+        this.rootMGT = rootMGT;
+    }
+
+    public String getProperty() {
+        return property;
+    }
+
+    public void setProperty(String property) {
+        this.property = property;
+    }
+
+    public PSTBranchNode getNextItem() {
+        return nextItem;
+    }
+
+    public void setNextItem(PSTBranchNode nextItem) {
+        this.nextItem = nextItem;
+    }
 }

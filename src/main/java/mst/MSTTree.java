@@ -7,7 +7,10 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import merkle.Leaf;
+import org.apache.poi.ss.formula.functions.T;
 
+import java.lang.reflect.Field;
 import java.util.*;
 
 @Getter
@@ -16,6 +19,7 @@ import java.util.*;
 @NoArgsConstructor
 public class MSTTree {
     private TrieNode root = new TrieNode();
+    private double[][] skylineMatrix;
     public void createMST(Context context) {
         List<Block> blocks = context.getBlocks();
         Map<Block, Set<String>> index = new HashMap<>();
@@ -24,7 +28,7 @@ public class MSTTree {
             Set<String> types = new TreeSet<>();
             List<Transaction> txs = block.getTransactions();
             for (Transaction tx : txs) {
-                String type = tx.getType();
+                String type = tx.getHome();
                 types.add(type);
             }
             index.put(block, types);
@@ -118,15 +122,19 @@ public class MSTTree {
         }
     }
 
-    public List<Transaction> propertyQuerySingleBlock(Map<String, String> queries, String blockId) {
-        if (queries.get("type") != null) {
+    public List<Transaction> propertyQuerySingleBlock(Map<String, String> queries, String blockId) throws NoSuchFieldException, IllegalAccessException {
+        if (queries.get("home") != null) {
             List<String> keys = new ArrayList<>();
-            String key = queries.get("type");
+            String key = queries.get("home");
             keys.add(key);
             TrieNode search = search(keys);
-            if (search.block.getId().equals(blockId)) {
+            if (search != null && search.block.getId().equals(blockId)) {
                 List<Transaction> txs = search.block.getTransactions();
-                List<Transaction> filter = filter(txs, queries);
+                List<Transaction> filter=new ArrayList<>();
+                for (String query:queries.keySet())
+                {
+                    filter=satisfy(txs,query,queries.get(query));
+                }
                 return filter;
             }
         } else {
@@ -137,25 +145,60 @@ public class MSTTree {
         return null;
     }
 
-    private void propertyQuerySingleBlockIter(Map<String, String> queries, List<Transaction> res, TrieNode node, String blockId) {
+    public List<Transaction> satisfy(List<Transaction> txs, String property, String target) throws NoSuchFieldException, IllegalAccessException {
+        List<Transaction> all=new ArrayList<>();
+        for (Transaction tx:txs)
+        {
+            Field field= tx.getClass().getDeclaredField(property);
+            field.setAccessible(true);
+            try {
+                double value=Double.parseDouble((String) field.get(tx));
+                String[] ranges=target.split(",");
+                double min=Double.valueOf(ranges[0]);
+                double max=Double.valueOf(ranges[1]);
+                if ((value <= 0 && min==0) || (value <= max && value >= min) || (max==20000 && value>=20000)) {
+                    all.add(tx);
+                }
+            } catch (NumberFormatException e) {
+                if (target.equals((String) field.get(tx)))
+                {
+                    all.add(tx);
+                }
+            }
+        }
+        return all;
+    }
+
+
+    private void propertyQuerySingleBlockIter(Map<String, String> queries, List<Transaction> res, TrieNode node, String blockId) throws NoSuchFieldException, IllegalAccessException {
         if (node == null) return;
         if (node.haveBlock && node.block.getId().equals(blockId)) {
-            res.addAll(filter(node.block.getTransactions(), queries));
+            res.addAll(satisfy(node.block.getTransactions(), queries));
         }
         for (TrieNode child : node.children.values()) {
             propertyQuerySingleBlockIter(queries, res, child, blockId);
         }
     }
 
-    public List<Transaction> propertyQuery(Map<String, String> queries) {
-        if (queries.get("type") != null) {
+    public List<Transaction> propertyQuery(Map<String, String> queries) throws NoSuchFieldException, IllegalAccessException {
+        if (queries.get("home") != null) {
             List<String> keys = new ArrayList<>();
-            String key = queries.get("type");
+            String key = queries.get("home");
             keys.add(key);
             TrieNode search = search(keys);
-            List<Transaction> txs = search.block.getTransactions();
-            List<Transaction> filter = filter(txs, queries);
-            return filter;
+            if (search != null) {
+                List<Transaction> txs = search.block.getTransactions();
+                List<Transaction> filter =new ArrayList<>();
+                for (String query:queries.keySet())
+                {
+                    filter=satisfy(txs,query,queries.get(query));
+                }
+                return filter;
+            } else {
+                List<Transaction> res = new ArrayList<>();
+                propertyQueryIter(queries, res, root);
+                return res;
+            }
         } else {
             List<Transaction> res = new ArrayList<>();
             propertyQueryIter(queries, res, root);
@@ -163,10 +206,10 @@ public class MSTTree {
         }
     }
 
-    private void propertyQueryIter(Map<String, String> queries, List<Transaction> res, TrieNode node) {
+    private void propertyQueryIter(Map<String, String> queries, List<Transaction> res, TrieNode node) throws NoSuchFieldException, IllegalAccessException {
         if (node == null) return;
         if (node.haveBlock) {
-            res.addAll(filter(node.block.getTransactions(), queries));
+            res.addAll(satisfy(node.block.getTransactions(), queries));
         }
         for (TrieNode child : node.children.values()) {
             propertyQueryIter(queries, res, child);
@@ -202,6 +245,56 @@ public class MSTTree {
         return res;
     }
 
+    //多属性查询
+    private void mtquery(Map<String, String> queries, List<Transaction> res, TrieNode node) throws NoSuchFieldException, IllegalAccessException {
+        if (node == null) return;
+        if (node.haveBlock) {
+            res.addAll(satisfy(node.block.getTransactions(), queries));
+        }
+        for (TrieNode child : node.children.values()) {
+            propertyQueryIter(queries, res, child);
+        }
+    }
+
+
+    public List<Transaction> satisfy(List<Transaction> txs, Map<String, String> queries) throws NoSuchFieldException, IllegalAccessException {
+        List<Transaction> return_txs=new ArrayList<>();
+        for (Transaction tx: txs)
+        {
+            boolean flag=true;
+            for (String query:queries.keySet())
+            {
+                Field field= tx.getClass().getDeclaredField(query);
+                field.setAccessible(true);
+                try {
+                    double value=Double.parseDouble((String) field.get(tx));
+                    String[] ranges=queries.get(query).split(",");
+                    double min=Double.valueOf(ranges[0]);
+                    double max=Double.valueOf(ranges[1]);
+                    if ((value <= 0 && min==0) || (value <= max && value >= min) || (max==20000 && value>=20000)) {
+                    }else{
+                        flag=false;
+                        break;
+                    }
+                } catch (NumberFormatException e) {
+                    if (queries.get(query).equals((String) field.get(tx)))
+                    {
+
+                    }else{
+                        flag=false;
+                    }
+                }
+
+            }
+            if (flag)
+            {
+                return_txs.add(tx);
+            }
+
+        }
+        return return_txs;
+    }
+
     public List<Transaction> propertyQueryTopK(String type, int topK) {
         PriorityQueue<Transaction> priorityQueue;
         List<Transaction> res = new ArrayList<>();
@@ -228,7 +321,9 @@ public class MSTTree {
             iter(queue, child);
         }
     }
-    class TrieNode {
+    @Getter
+    @Setter
+    public class TrieNode {
         boolean haveBlock;
         Map<String, TrieNode> children;
 

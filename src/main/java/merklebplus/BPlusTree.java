@@ -4,6 +4,7 @@ import blockchain.Transaction;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.lang.reflect.Field;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
@@ -23,6 +24,7 @@ public class BPlusTree<T, V extends Comparable<V>> {
     //无参构造方法，默认阶为3
     public BPlusTree(){
         this(3);
+        this.root=new LeafNode<T, V>();
     }
 
     //有参构造方法，可以设定B+树的阶
@@ -34,6 +36,12 @@ public class BPlusTree<T, V extends Comparable<V>> {
         this.root = new LeafNode<T, V>();
         this.left = null;
     }
+
+    public LeafNode getLeafRoot()
+    {
+        return (LeafNode) root;
+    }
+
 
     //查询
     public T find(V key){
@@ -247,7 +255,93 @@ public class BPlusTree<T, V extends Comparable<V>> {
         return res;
     }
 
-    abstract class Node<T, V extends Comparable<V>> {
+    //多属性查询，map的size即是属性的个数
+    public Queue<Transaction> iterMerkle(Leaf root, Queue<Transaction> Queue){
+        if (root.getLeft() == null) {
+            Queue.add(root.getTransaction());
+        }
+        if (root.getLeft() != null) {
+            iterMerkle(root.getLeft(), Queue);
+        }
+        if (root.getRight() != null) {
+            iterMerkle(root.getRight(), Queue);
+        }
+        return Queue;
+    }
+
+    public Queue<Transaction> iterBPlus(LeafNode leafNode, ArrayList<LeafNode> nodes, Queue<Transaction> txQueue){
+        LeafNode pre=leafNode;
+        if (pre.childs.length!=0)
+        {
+            if(leafNode.childs[0]!=null)
+            {
+                iterBPlus((LeafNode) leafNode.childs[0],nodes,txQueue);
+            }
+
+        }
+
+        if (pre.getRight()!=null)
+        {
+            if (pre.getMerkleRoot()!=null)
+            {
+                nodes.add(pre);
+            }
+            iterBPlus(pre.right,nodes,txQueue);
+        }
+
+        for (LeafNode node:nodes)
+        {
+            Leaf root=node.merkleRoot;
+            iterMerkle(root,txQueue);
+        }
+        return txQueue;
+    }
+
+    public List<Transaction> mtquery(BPlusTree bPlusTree, Map<String,String> queries) throws NoSuchFieldException, IllegalAccessException {
+        List<Transaction> txs=new ArrayList<>();
+        Queue<Transaction> all_transactions=new LinkedList<>();
+        Queue<LeafNode> nodeQueue=new LinkedList<>();
+        ArrayList<LeafNode> nodes=new ArrayList<>();
+        all_transactions=iterBPlus(bPlusTree.left,nodes,all_transactions);
+        for (Transaction tx: all_transactions)
+        {
+            for (String query:queries.keySet())
+            {
+                if (satisfy(tx,query,queries.get(query)))
+                {
+                    txs.add(tx);
+                }
+            }
+        }
+        return txs;
+    }
+
+    public boolean satisfy(Transaction tx, String property, String target) throws NoSuchFieldException, IllegalAccessException {
+        Field field= tx.getClass().getDeclaredField(property);
+        field.setAccessible(true);
+        try {
+            double value=Double.parseDouble((String) field.get(tx));
+            String[] ranges=target.split(",");
+            double min=Double.valueOf(ranges[0]);
+            double max=Double.valueOf(ranges[1]);
+            if ((value <= 0 && min==0) || (value <= max && value >= min) || (max==20000 && value>=20000)) {
+                return true;
+            }else{
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            if (target.equals((String) field.get(tx)))
+            {
+                return true;
+            }else{
+                return false;
+            }
+        }
+    }
+
+    @Getter
+    @Setter
+    public abstract class Node<T, V extends Comparable<V>> {
         protected Node<T, V> parent;
         protected Node<T, V>[] childs;
         // 子节点数量
@@ -416,7 +510,7 @@ public class BPlusTree<T, V extends Comparable<V>> {
      */
     @Getter
     @Setter
-    class LeafNode <T, V extends Comparable<V>> extends Node<T, V> {
+    public class LeafNode <T, V extends Comparable<V>> extends Node<T, V> {
 
         protected Object values[];
         protected LeafNode left;
